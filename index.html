@@ -63143,7 +63143,7 @@ let monsterGltf=null,monster1=null,monster1Loading=false;
 function loadMonster1GLB(){
   if(monsterGltf||monster1Loading)return;
   monster1Loading=true;
-  gltfLoader.load('./怪兽1.glb',gltf=>{
+  gltfLoader.load('./怪兽1_rigged.glb',gltf=>{
     monsterGltf=gltf;monster1Loading=false;
     const aniso=renderer.capabilities.getMaxAnisotropy();
     gltf.scene.traverse(o=>{
@@ -63169,7 +63169,7 @@ function loadMonster1GLB(){
 }
 function makeMonster1Root(){
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
-  const visual=monsterGltf.scene.clone(true);
+  const visual=cloneModelScene(monsterGltf);
   visual.rotation.y=Math.PI/2;
   visual.updateMatrixWorld(true);
   const box=new THREE.Box3().setFromObject(visual,true);
@@ -63179,6 +63179,7 @@ function makeMonster1Root(){
   visual.position.add(new THREE.Vector3(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2));
   body.add(visual);
   root.userData={kind:'monster',body,limbs:[],visual};
+  setupRiggedVisual(root,monsterGltf,visual);
   root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   return root;
 }
@@ -63201,9 +63202,9 @@ const MODEL_CATALOG=[
       '把灵兽打至三成血以下，靠近按 F，便能尝试收服。',
       '收服的灵兽会跟在你身后，替你咬碎挡路的家伙。'
     ]}},
-  {key:'dragon',file:'赤翼幼龙.glb',name:'赤翼幼龙',icon:'🐲',targetH:1.15,yaw:-Math.PI/2,spawn:{x:7.5,z:19.5},
+  {key:'dragon',file:'赤翼幼龙_rigged.glb',name:'赤翼幼龙',icon:'🐲',targetH:1.15,yaw:-Math.PI/2,spawn:{x:7.5,z:19.5},
     creature:{hp:110,atk:12,def:3,xp:90,gold:50,radius:.8,petHeight:.9,petAtk:8}},
-  {key:'qilin',file:'青玉麒麟.glb',name:'青玉麒麟',icon:'🦄',targetH:2.05,yaw:-Math.PI/2,spawn:{x:-7,z:36},
+  {key:'qilin',file:'青玉麒麟_rigged.glb',name:'青玉麒麟',icon:'🦄',targetH:2.05,yaw:-Math.PI/2,spawn:{x:-7,z:36},
     creature:{hp:260,atk:20,def:9,xp:220,gold:140,radius:1.35,petHeight:1.4,petAtk:16}}
 ];
 const npcs=[];
@@ -63235,9 +63236,52 @@ function tuneModelMaterials(gltf){
     });
   });
 }
+function cloneModelScene(gltf){
+  // 带 Skin 的 GLB 不能普通 clone，否则 SkeletonBinding 会断开，模型会僵在原地
+  return (gltf.animations&&gltf.animations.length)?SkeletonUtils.clone(gltf.scene):gltf.scene.clone(true);
+}
+function setupRiggedVisual(root,gltf,visual){
+  const clips=(gltf&&gltf.animations)||[];
+  if(!clips.length)return;
+  const mixer=new THREE.AnimationMixer(visual);
+  const actions={};
+  for(const clip of clips){
+    const act=mixer.clipAction(clip);
+    act.enabled=true;
+    actions[clip.name]=act;
+  }
+  root.userData.rigged=true;
+  root.userData.mixer=mixer;
+  root.userData.actions=actions;
+  root.userData.animName='Idle';
+  root.userData.currentAction=null;
+  playRootAnim(root,'Idle',true);
+}
+function playRootAnim(root,name,force){
+  const data=root&&root.userData;
+  if(!data||!data.rigged||!data.actions)return;
+  const actions=data.actions;
+  let nm=name;
+  if(!actions[nm])nm=(nm==='Fly'||nm==='Run')?'Walk':'Idle';
+  if(!actions[nm])nm=actions.Idle? 'Idle':Object.keys(actions)[0];
+  const act=actions[nm];
+  if(!act)return;
+  if(data.currentAction===act&&!force)return;
+  const prev=data.currentAction;
+  const once=(nm==='Attack'||nm==='Hit');
+  act.reset();
+  act.setLoop(once?THREE.LoopOnce:THREE.LoopRepeat,once?1:Infinity);
+  act.clampWhenFinished=once;
+  act.setEffectiveTimeScale(nm==='Attack'?1.55:nm==='Hit'?1.35:nm==='Run'?1.12:1);
+  act.setEffectiveWeight(1);
+  act.fadeIn(.15).play();
+  if(prev&&prev!==act)prev.fadeOut(.15);
+  data.currentAction=act;
+  data.animName=nm;
+}
 function buildModelRoot(asset,targetH,yaw,kind){
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
-  const visual=asset.gltf.scene.clone(true);
+  const visual=cloneModelScene(asset.gltf);
   visual.rotation.y=yaw||0;
   visual.updateMatrixWorld(true);
   let box=new THREE.Box3().setFromObject(visual,true);
@@ -63247,6 +63291,7 @@ function buildModelRoot(asset,targetH,yaw,kind){
   visual.position.add(new THREE.Vector3(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2));
   body.add(visual);
   root.userData={kind,body,limbs:[],visual};
+  setupRiggedVisual(root,asset.gltf,visual);
   root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
   return root;
 }
@@ -63492,9 +63537,15 @@ function updatePet(dt,time){
   }
   petState.lungeT=Math.max(0,petState.lungeT-dt);
   const lunge=petState.lungeT>0?Math.sin((1-petState.lungeT/.4)*Math.PI):0;
-  petState.body.position.y=moving?Math.abs(Math.sin(time*12))*.045:Math.sin(time*2.3)*.018;
-  petState.body.rotation.z=moving?Math.sin(time*12)*.05:0;
-  petState.body.position.z=lunge*.28;
+  const petData=root.userData;
+  if(petData.rigged){
+    playRootAnim(root,petState.lungeT>0?'Attack':(moving?'Run':'Idle'),false);
+    if(petData.mixer)petData.mixer.update(dt);
+  }else{
+    petState.body.position.y=moving?Math.abs(Math.sin(time*12))*.045:Math.sin(time*2.3)*.018;
+    petState.body.rotation.z=moving?Math.sin(time*12)*.05:0;
+    petState.body.position.z=lunge*.28;
+  }
   petState.moving=moving;
   petState.faceYaw=faceYaw;
   petState.targetName=best?best.name:null;
@@ -63859,6 +63910,7 @@ function makeEnemyBar(){
 }
 function enemyAnim(e,nm,force){
   e.animName=nm;
+  if(e.root&&e.root.userData&&e.root.userData.rigged)playRootAnim(e.root,nm,!!force);
 }
 function spawnWorldEnemies(){
   for(const area of AREAS){
@@ -64251,9 +64303,16 @@ function updateAirEnemy(e,dt,time,playerPos){
   }
   const data=e.root.userData;
   if(data&&data.body){
-    data.body.position.y=Math.sin(time*2.3+(e.seed||0))* .055;
-    data.body.rotation.z=(e.bank||0)*.55;
-    data.body.rotation.x=e.state==='attack'?Math.min(.35,e.stateT/.72)*.38:(e.airElite?Math.sin(time*1.4)*.025:0);
+    if(data.rigged){
+      // 飞行龙用 Fly 扇翼，蓄势/攻击时切 Attack；bank 仍由外层机身倾斜承担
+      playRootAnim(e.root,e.state==='attack'?'Attack':'Fly',false);
+      if(data.mixer)data.mixer.update(dt);
+      data.body.rotation.z=(e.bank||0)*.55;
+    }else{
+      data.body.position.y=Math.sin(time*2.3+(e.seed||0))* .055;
+      data.body.rotation.z=(e.bank||0)*.55;
+      data.body.rotation.x=e.state==='attack'?Math.min(.35,e.stateT/.72)*.38:(e.airElite?Math.sin(time*1.4)*.025:0);
+    }
   }
   if(e.airRune){
     if(e.boss&&e.state==='broken'){
@@ -64392,7 +64451,10 @@ function updateEnemy(e,dt,time,playerPos){
   e.root.position.y=groundHeight(e.root.position.x,e.root.position.z);
   const moving=e.animName==='Run'||e.animName==='Walk';
   const data=e.root.userData,phase=time*(e.animName==='Run'?12:7);
-  if(data.kind==='monster'){
+  if(data.rigged){
+    // 有蒙皮的 GLB 直接播放骨骼动作；不再重复整体起伏，否则会与骨骼位移叠加
+    if(data.mixer)data.mixer.update(dt);
+  }else if(data.kind==='monster'){
     // 静态 GLB 没有骨骼动画：用整体起伏、侧倾和扑咬前冲做出"活物"感
     const lunge=e.state==='attack'?Math.sin(Math.min(1,e.stateT/.52)*Math.PI):0;
     data.body.position.y=moving?Math.abs(Math.sin(phase))*.07:Math.sin(time*1.6+e.id)*.028;
