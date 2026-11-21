@@ -487,6 +487,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .ah-break #ah-break-n{color:#eaffff;font-weight:700;min-width:25px}
 .ah-break .ab-perfect{margin-left:auto;color:#9fe8ff}
 .ah-break .ab-perfect b{color:#eaffff}
+.ah-boss{display:none;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,205,110,.2)}
+.ah-boss.on{display:block}
+.ah-boss-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:9.5px;color:#d9b77a;letter-spacing:.7px}
+.ah-boss-head span{color:#ffe1a2}
+.ah-boss-head b{color:#fff0c8;font-weight:700;font-variant-numeric:tabular-nums}
+.ah-boss-bar{height:3px;margin-top:5px;border-radius:2px;background:rgba(255,235,190,.1);overflow:hidden}
+.ah-boss-bar>i{display:block;height:100%;width:100%;border-radius:2px;background:linear-gradient(90deg,#a86b2d,#ffe08a);box-shadow:0 0 8px rgba(255,200,80,.7);transition:width .18s}
 .ah-alt{color:#72e4ff}
 .ah-tip{margin-top:5px;font-size:9.5px;color:#6096aa;letter-spacing:.55px}
 .air-modal{width:min(452px,94vw)}
@@ -613,7 +620,8 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
     <div class="ah-bar"><i id="ah-bar"></i></div>
     <div class="ah-meta"><span>第 <b id="ah-wave">1/3</b> 波</span><span>余妖龙 <b id="ah-left">0</b></span><span class="ah-alt" id="ah-alt">云台 +0m</span></div>
     <div class="ah-break"><span>破风</span><span class="ab-dots"><i id="ab-0"></i><i id="ab-1"></i><i id="ab-2"></i></span><span id="ah-break-n">0/3</span><span class="ab-perfect">完美 <b id="ah-perfect">0</b></span></div>
-    <div class="ah-tip">Tab 锁定 · 左键追身连击 · 右键瞬步 · 空格/Z 升降 · H 收翼 · Q 离场</div>
+    <div class="ah-boss" id="ah-boss"><div class="ah-boss-head"><span>云海龙将</span><b id="ah-boss-phase">风眼凝势</b></div><div class="ah-boss-bar"><i id="ah-boss-fill"></i></div></div>
+    <div class="ah-tip">Tab 锁定 · 左键追身连击 · 右键瞬步/破风眼 · 空格/Z 升降 · H 收翼 · Q 离场</div>
   </div>
   <div id="bounty-track" hidden title="点击打开悬赏榜">
     <div class="bt-top"><span>📜</span><span>悬 赏</span><span class="bt-state" id="bt-state">进行中</span></div>
@@ -63891,9 +63899,19 @@ function makeAirRune(e){
   const sp=new THREE.Sprite(mat);sp.scale.set(2.3,2.3,1);sp.position.y=e.height*.58+.5;
   e.root.add(sp);e.airRune=sp;
 }
+function makeBossWindEye(e){
+  const g=new THREE.Group();g.position.set(0,e.height*.62,0);
+  const core=new THREE.Mesh(new THREE.IcosahedronGeometry(.3,1),new THREE.MeshBasicMaterial({color:0xffdc7a,transparent:true,opacity:.96,depthWrite:false,blending:THREE.AdditiveBlending}));
+  core.scale.set(.8,1.35,.8);g.add(core);
+  const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:airRuneTexture(),color:0xffc35a,transparent:true,opacity:.5,depthWrite:false,blending:THREE.AdditiveBlending}));
+  halo.scale.set(2.1,2.1,1);g.add(halo);
+  g.visible=false;e.root.add(g);
+  e.windEye=g;e.windEyeCore=core;e.windEyeHalo=halo;
+}
 function removeAirEnemy(e){
   scene.remove(e.root);scene.remove(e.warning);
   if(e.airRune){e.root.remove(e.airRune);e.airRune.material.dispose()}
+  if(e.windEye){e.root.remove(e.windEye);e.windEye.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)o.material.dispose()})}
   e.warning.children[0].geometry.dispose();e.warning.children[0].material.dispose();
   e.bar.remove();
   const idx=enemies.indexOf(e);if(idx>=0)enemies.splice(idx,1);
@@ -63933,9 +63951,10 @@ function clearAirBursts(){
 function spawnBreakBurst(){
   if(!playerModel)return;
   const pos=playerModel.position.clone();pos.y+=1.0;
+  const marked=!!(GS.p.air&&GS.p.air.executeMark);
   for(let i=0;i<2;i++){
     const geo=new THREE.RingGeometry(.5,1.1,32);
-    const mat=new THREE.MeshBasicMaterial({color:i?0x9ff4ff:0xffe08a,transparent:true,opacity:.82,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+    const mat=new THREE.MeshBasicMaterial({color:i?(marked?0xffd36a:0x9ff4ff):0xffe08a,transparent:true,opacity:.82,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
     const ring=new THREE.Mesh(geo,mat);
     ring.position.copy(pos);
     if(i){ring.rotation.set(Math.PI/2,0,.35);ring.position.y+=.25}
@@ -63944,6 +63963,32 @@ function spawnBreakBurst(){
     scene.add(ring);
     airBursts.push({mesh:ring,t:0,life:.5+i*.08,maxScale:4.2+i*1.3});
   }
+}
+function spawnBossRing(pos,color,maxScale,life,vertical=false){
+  const geo=new THREE.RingGeometry(.55,1.05,48);
+  const mat=new THREE.MeshBasicMaterial({color,transparent:true,opacity:.84,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+  const ring=new THREE.Mesh(geo,mat);ring.position.copy(pos);
+  if(vertical)ring.rotation.y=Math.PI/2;else ring.rotation.x=-Math.PI/2;
+  scene.add(ring);airBursts.push({mesh:ring,t:0,life,maxScale});
+}
+function spawnBossEyeBreak(e){
+  if(!e)return;
+  const pos=e.root.position.clone();pos.y+=e.height*.62;
+  spawnBossRing(pos,0xffe08a,5.4,.55);
+  spawnBossRing(pos,0x9ff4ff,4.0,.7);
+  spawnBossRing(pos,0xffc35a,3.0,.9,true);
+}
+function spawnBossExecute(e){
+  if(!e)return;
+  const pos=e.root.position.clone();pos.y+=e.height*.5;
+  spawnBossRing(pos,0xffe08a,7.2,.62);
+  spawnBossRing(pos,0x9ff4ff,5.4,.78);
+  spawnBossRing(pos,0xffd36a,3.4,1.05,true);
+}
+function spawnBossGuard(e){
+  if(!e)return;
+  const pos=e.root.position.clone();pos.y+=e.height*.5;
+  spawnBossRing(pos,0xffe08a,3.6,.7);
 }
 function updateAirBursts(dt){
   for(let i=airBursts.length-1;i>=0;i--){
@@ -63991,6 +64036,7 @@ function updateAirEnemy(e,dt,time,playerPos){
     e.root.scale.setScalar(Math.max(.01,(e.tpl.s||1)*k));
     e.root.position.y-=dt*1.8;e.root.rotation.z+=dt*1.9;
     if(e.airRune)e.airRune.material.opacity=.36*k;
+    if(e.windEye)e.windEye.visible=false;
     if(e.deathT>1.25)removeAirEnemy(e);
     return;
   }
@@ -64004,12 +64050,40 @@ function updateAirEnemy(e,dt,time,playerPos){
   if(!e._barOn){e._barOn=true;e.bar.classList.add('on')}
   e.aggro=!GS.dead&&playerAlive;
   const tameTag='';
-  const label=e.name+(e.airElite?' · 龙将':'')+(e.state==='attack'?' · 蓄势':e.state==='recover'?' · 破绽':e.aggro?' · 交战':'');
+  const phase=e.state==='windeye'?' · 风眼':e.state==='broken'?' · 破绽':e.state==='attack'?' · 蓄势':e.state==='recover'?(e.boss?' · 回势':' · 破绽'):e.aggro?' · 交战':'';
+  const label=e.name+(e.airElite&&!e.boss?' · 龙将':'')+phase;
   if(e._label!==label){e._label=label;e.bar._nm.textContent=label}
   if(e._aggroShown!==e.aggro){e._aggroShown=e.aggro;e.bar._fl.classList.toggle('aggro',e.aggro)}
   e.atkCd-=dt;e.flashT-=dt;e.fireFlash-=dt;e.stateT+=dt;
   const face=Math.atan2(dx,dz);
-  if(e.state==='attack'){
+  if(e.boss){
+    e.windEyeCd=Math.max(0,(e.windEyeCd||0)-dt);
+    if(e.state==='windeye'&&e.stateT>=2.2){
+      airBossBlast(e);
+      e.state='recover';e.stateT=0;e.windEyeCd=9.2;
+      if(e.windEye)e.windEye.visible=false;
+      if(e.airRune)e.airRune.visible=true;
+    }else if(e.state==='broken'){
+      e.breakT=Math.max(0,(e.breakT||0)-dt);
+      if(e.breakT<=0){
+        const heal=Math.max(12,Math.floor(e.maxHp*.15));
+        e.hp=Math.min(e.maxHp,e.hp+heal);
+        e.state='recover';e.stateT=0;e.windEyeCd=9.2;e.executeDone=false;
+        if(e.windEye)e.windEye.visible=false;
+        if(e.airRune)e.airRune.visible=true;
+        spawnBossGuard(e);
+        const p=e.root.position.clone();p.y+=e.height*.6;
+        floater('回盾 +'+heal,0xffe08a,p,{y:1.6},'crit');
+        showBanner('🛡 龙将回盾 +'+heal+' 气血',1400);
+        updateAirHud(true);
+      }
+    }else if(e.state==='idle'&&e.aggro&&e.windEyeCd<=0&&dist<18&&!GS.dead){
+      startBossWindEye(e);
+    }
+  }
+  if(e.state==='windeye'||e.state==='broken'){
+    e.root.rotation.y=face;e.bank=0;
+  }else if(e.state==='attack'){
     // 蓄势：原地悬停、龙首对准玩家，风环收紧后掷出双风刃
     e.root.rotation.y=face;
     const k=Math.min(1,e.stateT/.72);
@@ -64031,27 +64105,32 @@ function updateAirEnemy(e,dt,time,playerPos){
     e.state='attack';e.stateT=0;e._swung=false;
   }
   // 空中盘旋：绕着玩家保持攻击距离，同时缓慢向玩家高度收拢
-  e.orbitAngle+=(e.orbitDir||1)*(.42+(e.seed||0)*.045)*dt;
-  const orbitR=(e.airOrbit||8)+Math.sin(time*.55+(e.seed||0))*1.1+(dist>14?3:0);
-  let tx=playerPos.x+Math.cos(e.orbitAngle)*orbitR;
-  let tz=playerPos.z+Math.sin(e.orbitAngle)*orbitR;
-  let ty=playerPos.y+(e.altOff||0)+Math.sin(time*.8+(e.seed||0))*.18;
-  ty=Math.min(FLY_CEIL-.25,ty);
-  if(Math.hypot(tx-SKY_X,tz-SKY_Z)>19){
-    const a=Math.atan2(tz-SKY_Z,tx-SKY_X);tx=SKY_X+Math.cos(a)*18;tz=SKY_Z+Math.sin(a)*18;
-  }
-  const vx=tx-e.root.position.x,vy=ty-e.root.position.y,vz=tz-e.root.position.z;
-  const vlen=Math.hypot(vx,vy,vz);
-  if(vlen>.01){
-    const sp=Math.min(vlen,(e.airSpeed||7.2)*dt);
-    e.root.position.x+=vx/vlen*sp;e.root.position.y+=vy/vlen*sp;e.root.position.z+=vz/vlen*sp;
-  }
-  e.root.position.y=Math.min(FLY_CEIL-.2,e.root.position.y);
-  if(e.state!=='attack'){
-    const moveFace=Math.atan2(vx,vz);
-    let d=moveFace-e.root.rotation.y;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
-    e.root.rotation.y+=d*Math.min(1,dt*3.4);
-    e.bank=Math.max(-.45,Math.min(.45,-d*.55));
+  let vx=0,vy=0,vz=0;
+  if(e.state!=='windeye'&&e.state!=='broken'){
+    e.orbitAngle+=(e.orbitDir||1)*(.42+(e.seed||0)*.045)*dt;
+    const orbitR=(e.airOrbit||8)+Math.sin(time*.55+(e.seed||0))*1.1+(dist>14?3:0);
+    let tx=playerPos.x+Math.cos(e.orbitAngle)*orbitR;
+    let tz=playerPos.z+Math.sin(e.orbitAngle)*orbitR;
+    let ty=playerPos.y+(e.altOff||0)+Math.sin(time*.8+(e.seed||0))*.18;
+    ty=Math.min(FLY_CEIL-.25,ty);
+    if(Math.hypot(tx-SKY_X,tz-SKY_Z)>19){
+      const a=Math.atan2(tz-SKY_Z,tx-SKY_X);tx=SKY_X+Math.cos(a)*18;tz=SKY_Z+Math.sin(a)*18;
+    }
+    vx=tx-e.root.position.x;vy=ty-e.root.position.y;vz=tz-e.root.position.z;
+    const vlen=Math.hypot(vx,vy,vz);
+    if(vlen>.01){
+      const sp=Math.min(vlen,(e.airSpeed||7.2)*dt);
+      e.root.position.x+=vx/vlen*sp;e.root.position.y+=vy/vlen*sp;e.root.position.z+=vz/vlen*sp;
+    }
+    e.root.position.y=Math.min(FLY_CEIL-.2,e.root.position.y);
+    if(e.state!=='attack'){
+      const moveFace=Math.atan2(vx,vz);
+      let d=moveFace-e.root.rotation.y;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
+      e.root.rotation.y+=d*Math.min(1,dt*3.4);
+      e.bank=Math.max(-.45,Math.min(.45,-d*.55));
+    }
+  }else{
+    e.root.position.y=Math.min(FLY_CEIL-.2,e.root.position.y);
   }
   const data=e.root.userData;
   if(data&&data.body){
@@ -64060,8 +64139,24 @@ function updateAirEnemy(e,dt,time,playerPos){
     data.body.rotation.x=e.state==='attack'?Math.min(.35,e.stateT/.72)*.38:(e.airElite?Math.sin(time*1.4)*.025:0);
   }
   if(e.airRune){
-    if(e.state!=='attack')e.airRune.material.opacity=e.aggro?.38:.18;
-    e.airRune.scale.setScalar(2.3+(e.airElite?.35:0));
+    if(e.boss&&e.state==='broken'){
+      e.airRune.material.opacity=.72;e.airRune.material.color.setHex(0xffb85a);
+      e.airRune.scale.setScalar(2.65+Math.sin(time*10)*.15);
+    }else{
+      if(e.state!=='attack')e.airRune.material.opacity=e.aggro?.38:.18;
+      e.airRune.scale.setScalar(2.3+(e.airElite?.35:0));
+    }
+  }
+  if(e.windEye){
+    const on=e.state==='windeye';
+    e.windEye.visible=on;
+    if(on){
+      const k=Math.min(1,e.stateT/2.2);
+      e.windEye.rotation.y+=dt*2.3;
+      if(e.windEyeCore)e.windEyeCore.scale.set(.8+k*.55,1.35+k*.35,.8+k*.55);
+      if(e.windEyeHalo){e.windEyeHalo.material.opacity=.32+k*.55;e.windEyeHalo.scale.setScalar(1.8+k*.9)}
+      e.windEye.position.y=e.height*.62+Math.sin(time*6)*.06;
+    }
   }
   e.materials.forEach(({mat,color,intensity})=>{
     mat.emissive.setHex(e.flashT>0?0xff6a3a:(e.fireFlash>0?0xffc46a:color));
@@ -64224,8 +64319,9 @@ function hitEnemies(range,arcDeg,baseAtk,mul,ignoreDef,originPos,knock){
   }
   return hit;
 }
-function damageEnemy(e,dmg,crit,stagger=false){
+function damageEnemy(e,dmg,crit,stagger=false,raw=false){
   if(!e||e.dead)return;
+  if(e.boss&&e.state==='broken'&&e.breakT>0&&!raw)dmg=Math.floor(dmg*1.5);
   e.hp-=dmg;e.flashT=.16;
   e.aggro=true;
   floater(String(dmg),crit?0xff6a3a:0xffd23e,new THREE.Vector3().copy(e.root.position),{y:1.9},crit?'crit':'');
@@ -64332,6 +64428,8 @@ function updateCombat(dt){
       const sk=a.skill,origin={x:playerModel.position.x,z:playerModel.position.z};
       spawnSkillFx(sk,origin);hitEnemies(sk.range,sk.arc,GS.p.atk,sk.mul,true,origin,1.2);sfxSkill();
     }else if(a.break){
+      const brokenBoss=airBrokenBossTarget();
+      if(brokenBoss)airBossExecute(brokenBoss);
       hitEnemies(4.2,180,GS.p.atk,1.8,true,null,1.5);
       spawnBreakBurst();impact(playerModel.position,true);
       floater('破风 · 斩',0xbffcff,new THREE.Vector3().copy(playerModel.position),{y:2.8},'crit');
@@ -64375,7 +64473,8 @@ function markPerfectDodge(){
 function playerDodge(){
   const now=gameNow();
   if(dodgeCd>now||!canAct())return;
-  const perfect=airThreatWindow();
+  const eye=airBossEyeTarget();
+  const perfect=!!eye||airThreatWindow();
   dodgeCd=now+850;
   dodgeT=now+380;
   sfxDodge();
@@ -64388,7 +64487,10 @@ function playerDodge(){
   dir.normalize();
   dodging=true;pendingAttack=null;attackBuffered=false;attackAnimT=0;
   playAnim('Run');
-  if(perfect)markPerfectDodge();
+  if(perfect){
+    markPerfectDodge();
+    if(eye)breakBossWindEye(eye);
+  }
   else floater('瞬步',0x5ab8ff,new THREE.Vector3().copy(playerModel.position),{y:2.3},'info');
 }
 function castSkill(sk){
@@ -66826,14 +66928,16 @@ const AIR_WAVES=[
   {n:'裂云翼龙',count:2,hp:160,atk:14,def:3,xp:190,g:70,h:2.9,alt:.2,orbit:10.0,speed:8.2,form:[[-6.3,-4.2,.45],[6.2,-5.0,.6]]},
   {n:'云海龙将',count:1,hp:420,atk:20,def:5,xp:520,g:220,h:3.9,alt:.35,orbit:9.2,speed:8.8,elite:true,form:[[0,-8.2,.55]]},
 ];
-const airCombat={active:false,wave:0,need:0,killed:0,waveOn:false,clearAt:0,nextWaveAt:0,startTime:0,ended:false,hudT:0,result:null,perfect:0,breakMeter:0,hitsTaken:0};
+const airCombat={active:false,wave:0,need:0,killed:0,waveOn:false,clearAt:0,nextWaveAt:0,startTime:0,ended:false,hudT:0,result:null,perfect:0,breakMeter:0,hitsTaken:0,executeCount:0,executeUnlock:false};
 function ensureAirState(){
-  if(!GS.p.air||typeof GS.p.air!=='object')GS.p.air={clears:0,best:0,first:false,sRank:false,windMark:false};
+  if(!GS.p.air||typeof GS.p.air!=='object')GS.p.air={clears:0,best:0,first:false,sRank:false,windMark:false,executeMark:false,executions:0};
   GS.p.air.clears=Math.max(0,Number(GS.p.air.clears)||0);
   GS.p.air.best=Math.max(0,Number(GS.p.air.best)||0);
   GS.p.air.first=!!GS.p.air.first;
   GS.p.air.sRank=!!GS.p.air.sRank;
   GS.p.air.windMark=!!GS.p.air.windMark;
+  GS.p.air.executeMark=!!GS.p.air.executeMark;
+  GS.p.air.executions=Math.max(0,Number(GS.p.air.executions)||0);
   return GS.p.air;
 }
 function airClock(sec){
@@ -66932,6 +67036,7 @@ function openAirArenaDialog(){
       <div class="air-rules">
         云台悬于乌坦城上空。按 <b>Tab</b> 锁定妖龙，左键会先<b>追身突进</b>再出招；右键瞬步躲风刃。<br>
         空格上升、<b>Z</b> 下降；空中按 <b>H</b> 可收翼，短暂滑翔缓降，再按 <b>H</b> 展开。共 <b>三波</b>，每清一波回复 <b>25%</b> 气血与斗气。<b>坠落云台</b>或<b>离场</b>即中止；按 <b>Q</b> 可主动收势。<br>
+        第三波<b>云海龙将</b>会蓄起<b>风眼</b>：在风爆命中前右键瞬步可碎眼，龙将进入 <b>3 秒破绽</b>；破绽内用 <b>3 层破风斩</b>命中触发<b>破风处决</b>。未处决则龙将回复 <b>15%</b> 气血。<br>
         首通奖励 <b>${rewardGold} 金</b>与大量经验，并永久提升<b>空中攻击 8%</b>；之后每次破阵仍有金币。
       </div>
       <div class="air-actions"><button class="air-start" data-air-start>开始斗空</button><button class="air-ghost" onclick="document.getElementById('modals').innerHTML=''">暂不前往</button></div>
@@ -66940,6 +67045,88 @@ function openAirArenaDialog(){
   const btn=$('modals').querySelector('[data-air-start]');
   if(btn)btn.onclick=()=>startAirCombat();
 }
+function airBossEyeTarget(){
+  if(!airCombat.active||!playerModel||GS.dead||!playerAlive)return null;
+  for(const e of enemies){
+    if(!e.boss||e.dead||e.state!=='windeye')continue;
+    if(e.stateT<.25||e.stateT>1.95)continue;
+    if(e.root.position.distanceTo(playerModel.position)<12.5)return e;
+  }
+  return null;
+}
+function startBossWindEye(e){
+  if(!e||e.dead||!e.boss||!airCombat.active)return false;
+  e.state='windeye';e.stateT=0;e.breakT=0;e.executeDone=false;e.windEyeCd=9.4;e.atkCd=20;
+  e.aggro=true;
+  if(e.airRune)e.airRune.visible=false;
+  if(e.windEye)e.windEye.visible=true;
+  const pos=e.root.position.clone();pos.y+=e.height*.62;
+  floater('风眼凝聚',0xffd36a,pos,{y:1.5},'crit');
+  showBanner('🌪 云海龙将 · 风眼凝势',1800);
+  try{tone(520,.18,'sine',.055);tone(780,.24,'triangle',.04,.12)}catch(err){}
+  updateAirHud(true);
+  return true;
+}
+function breakBossWindEye(e){
+  if(!e||e.dead||!e.boss||e.state!=='windeye')return false;
+  e.state='broken';e.stateT=0;e.breakT=3.0;e.executeDone=false;e.windEyeCd=9.4;
+  if(e.windEye)e.windEye.visible=false;
+  if(e.airRune)e.airRune.visible=true;
+  spawnBossEyeBreak(e);
+  const pos=e.root.position.clone();pos.y+=e.height*.62;
+  floater('风眼破碎 · 破绽 3 秒',0xffe08a,pos,{y:1.9},'crit');
+  showBanner('❄ 风眼破碎 · 龙将破绽 3 秒',2000);
+  impact(pos,true);
+  try{tone(920,.12,'sine',.06);tone(1380,.2,'triangle',.045,.08)}catch(err){}
+  updateAirHud(true);
+  return true;
+}
+function airBossBlast(e){
+  if(!e||e.dead)return;
+  const pos=e.root.position.clone();pos.y+=e.height*.45;
+  spawnBossRing(pos,0xffd36a,9.5,.72);
+  const dist=playerModel?playerModel.position.distanceTo(e.root.position):999;
+  if(dist<14&&playerAlive&&!GS.dead&&gameNow()>=dodgeT){
+    damagePlayer(Math.max(12,Math.floor(e.atk*1.55)));
+  }
+  showBanner('🌪 风眼爆裂 · 风爆扩散',1400);
+  impact(pos,true);
+  try{tone(220,.3,'sawtooth',.055,0,-180)}catch(err){}
+  updateAirHud(true);
+}
+function airBossExecute(e){
+  if(!e||e.dead||!e.boss||e.state!=='broken'||e.executeDone)return false;
+  e.executeDone=true;
+  const dmg=Math.max(55,Math.floor(e.maxHp*.25));
+  e.hp=Math.max(0,e.hp-dmg);e.flashT=.46;e.aggro=true;
+  const pos=e.root.position.clone();pos.y+=e.height*.55;
+  floater('破风处决 -'+dmg,0xffe08a,pos,{y:2.4},'crit');
+  spawnBossExecute(e);
+  if(!reducedMotion){hitStop=Math.max(hitStop,.12);trauma=Math.min(1,trauma+.4)}
+  showBanner('❄ 破风处决 · 龙将风核碎裂',2400);
+  try{tone(180,.3,'sawtooth',.06,0,-120);tone(1100,.16,'sine',.06,.1);tone(1600,.24,'triangle',.05,.18)}catch(err){}
+  airCombat.executeCount=(airCombat.executeCount||0)+1;
+  const air=ensureAirState();
+  air.executions=(air.executions||0)+1;
+  if(!air.executeMark){air.executeMark=true;airCombat.executeUnlock=true;}
+  if(e.hp<=0){killEnemy(e)}
+  else{
+    e.state='recover';e.stateT=0;e.breakT=0;e.windEyeCd=9.5;e.executeDone=true;
+    if(e.windEye)e.windEye.visible=false;
+    if(e.airRune)e.airRune.visible=true;
+  }
+  updateAirHud(true);saveGame();
+  return true;
+}
+function airBrokenBossTarget(range=4.8){
+  if(!playerModel)return null;
+  for(const e of enemies){
+    if(!e.boss||e.dead||e.state!=='broken'||e.breakT<=0||e.executeDone)continue;
+    if(e.root.position.distanceTo(playerModel.position)<=range)return e;
+  }
+  return null;
+}
+
 function startAirCombat(){
   if(airCombat.active)return false;
   if(!MODEL_ASSETS.dragon){
@@ -66951,6 +67138,7 @@ function startAirCombat(){
   resetCombat();
   airCombat.active=true;airCombat.wave=0;airCombat.need=0;airCombat.killed=0;airCombat.waveOn=false;
   airCombat.perfect=0;airCombat.breakMeter=0;airCombat.hitsTaken=0;
+  airCombat.executeCount=0;airCombat.executeUnlock=false;
   airCombat.clearAt=0;airCombat.nextWaveAt=gameTime+1.6;airCombat.startTime=gameTime;airCombat.ended=false;airCombat.result=null;
   playerModel.position.set(SKY_X,SKY_TOP+.02,SKY_Z);velocityY=0;jumpsLeft=maxJumps;
   GS.p.hp=Math.min(GS.p.mhp,GS.p.hp+Math.floor(GS.p.mhp*.35));
@@ -66982,7 +67170,9 @@ function spawnAirWave(w){
     e.airOrbit=cfg.orbit+(i? .55:0);e.altOff=cfg.alt+(i? .35:0);
     e.airSpeed=cfg.speed+(cfg.elite? .8:0);e.orbitAngle=Math.atan2(off[1],off[0]);
     e.orbitDir=i%2? 1:-1;e.seed=i*2.7+w*.8;e.atkCd=1.5+i*.7;e.aggro=true;
+    e.boss=!!cfg.elite;e.windEyeCd=6.2;e.breakT=0;e.executeDone=false;
     makeAirRune(e);
+    if(e.boss)makeBossWindEye(e);
     count++;
   });
   airCombat.need=count;
@@ -67045,6 +67235,17 @@ function updateAirHud(force=false){
   for(let i=0;i<3;i++){const dot=$('ab-'+i);if(dot)dot.classList.toggle('on',i<bm)}
   $('ah-break-n').textContent=bm+'/3';
   $('ah-perfect').textContent=airCombat.perfect||0;
+  const boss=enemies.find(e=>e.air&&e.boss&&!e.dead);
+  const bossBox=$('ah-boss');
+  if(bossBox)bossBox.classList.toggle('on',!!boss);
+  if(boss){
+    let phase='风眼凝势';
+    if(boss.state==='windeye')phase='风眼 '+(Math.max(0,2.2-boss.stateT)).toFixed(1)+'s';
+    else if(boss.state==='broken')phase='破绽 '+(Math.max(0,boss.breakT||0)).toFixed(1)+'s';
+    else if(boss.executeDone)phase='风核已碎';
+    const phaseEl=$('ah-boss-phase');if(phaseEl)phaseEl.textContent=phase;
+    const fill=$('ah-boss-fill');if(fill)fill.style.width=Math.max(0,Math.min(100,boss.hp/boss.maxHp*100))+'%';
+  }
   const alt=playerModel?playerModel.position.y-SKY_TOP:0;
   $('ah-alt').textContent='云台 '+(alt>=0?'+':'-')+Math.abs(alt).toFixed(0)+'m';
 }
@@ -67105,6 +67306,7 @@ function finishAirCombat(){
     air.sRank=true;sReward=500;GS.p.gold+=sReward;
     if(!air.windMark){air.windMark=true;windUnlock=true;}
   }
+  const executeUnlock=!!airCombat.executeUnlock;
   const rewardGold=first?680+GS.p.ri*80:260+GS.p.ri*50;
   const rewardXp=first?1200:420+GS.p.ri*30;
   GS.p.gold+=rewardGold;gainXp(rewardXp);
@@ -67115,7 +67317,7 @@ function finishAirCombat(){
   GS.lockedId=null;$('lock-arrow').classList.remove('on');$('lock-name').textContent='';
   updateAirHud(true);
   saveGame();
-  airCombat.result={time:elapsed,ms,rewardGold,rewardXp,first,best:air.best,clears:air.clears,rank:rankInfo.rank,score:rankInfo.score,perfect:airCombat.perfect,hitsTaken:airCombat.hitsTaken,sReward,windUnlock};
+  airCombat.result={time:elapsed,ms,rewardGold,rewardXp,first,best:air.best,clears:air.clears,rank:rankInfo.rank,score:rankInfo.score,perfect:airCombat.perfect,hitsTaken:airCombat.hitsTaken,sReward,windUnlock,execute:airCombat.executeCount||0,executeUnlock};
   showAirResult();
   sfxBreakthrough();
 }
@@ -67128,7 +67330,7 @@ function showAirResult(){
       <div class="air-res-badge">云 海 破 阵</div>
       <div class="air-res-rank ${r.rank}">${r.rank}</div>
       <div class="air-res-title">斗 空 归 来</div>
-      <div class="air-res-sub">三波妖龙尽数击落 · ${r.perfect} 次完美瞬步 · 受击 ${r.hitsTaken} 次</div>
+      <div class="air-res-sub">三波妖龙尽数击落 · ${r.perfect} 次完美瞬步 · 受击 ${r.hitsTaken} 次${r.execute?' · '+r.execute+' 次破风处决':''}</div>
       <div class="air-res-grid">
         <div>本次用时<b>${airClock(r.time)}</b></div>
         <div>本次评级<b>${r.rank}</b></div>
@@ -67137,7 +67339,7 @@ function showAirResult(){
         <div>最快纪录<b>${airBestText(r.best)}</b></div>
         <div>已破阵<b>${r.clears} 次</b></div>
       </div>
-      <div class="air-res-note">${r.first?'首通奖励':'破阵奖励'}：<span class="good">+${r.rewardGold} 金 · +${r.rewardXp} 经验</span>${r.first?'<br><span class="good">永久获得：空中攻击 +8%</span>':''}${r.sReward?'<br><span class="good">S 评级首通 · 额外 +'+r.sReward+' 金</span>':''}${r.windUnlock?'<br><span class="good">解锁：云海风痕 · 冰翼拖尾</span>':''}</div>
+      <div class="air-res-note">${r.first?'首通奖励':'破阵奖励'}：<span class="good">+${r.rewardGold} 金 · +${r.rewardXp} 经验</span>${r.first?'<br><span class="good">永久获得：空中攻击 +8%</span>':''}${r.sReward?'<br><span class="good">S 评级首通 · 额外 +'+r.sReward+' 金</span>':''}${r.windUnlock?'<br><span class="good">解锁：云海风痕 · 冰翼拖尾</span>':''}${r.execute?'<br><span class="good">破风处决：'+r.execute+' 次</span>':''}${r.executeUnlock?'<br><span class="good">解锁：破风斩 · 金纹</span>':''}</div>
       <div class="air-actions"><button class="air-start" data-air-again>再战一场</button><button class="air-ghost" onclick="document.getElementById('modals').innerHTML=''">收势下台</button></div>
     </div>
   </div>`;
@@ -67153,16 +67355,23 @@ window.__airDebug = {
     waveOn: airCombat.waveOn, time: +(gameTime-airCombat.startTime).toFixed(2),
     best: ensureAirState().best, clears: ensureAirState().clears, first: ensureAirState().first,
     perfect: airCombat.perfect, breakMeter: airCombat.breakMeter, hitsTaken: airCombat.hitsTaken,
+    execute: airCombat.executeCount||0, executeUnlock: !!airCombat.executeUnlock,
     rank: airCombat.result?.rank || '', hud: !!$('air-hud')&&!$('air-hud').hidden, wings: !!wingsOn, playerY: playerModel?+playerModel.position.y.toFixed(2):null,
     lunge: +lastAirLunge.toFixed(2), shots: airShots.length, activeEnemies: enemies.filter(e=>e.air&&!e.dead).length,
     modal: $('modals').childElementCount>0, arena: !!airArenaGroup,
   }),
   rankOf: (time,perfect,hits) => airRank(+time||0,+perfect||0,+hits||0),
-  dodge: () => { playerDodge(); return { perfect: airCombat.perfect, breakMeter: airCombat.breakMeter } },
+  dodge: () => { playerDodge(); return { perfect: airCombat.perfect, breakMeter: airCombat.breakMeter, eye: !!airBossEyeTarget() } },
   setBreak: n => { airCombat.breakMeter=Math.max(0,Math.min(3,Number(n)||0));updateAirHud(true);return airCombat.breakMeter },
   setStats: (perfect,hits) => { airCombat.perfect=Math.max(0,Number(perfect)||0);airCombat.hitsTaken=Math.max(0,Number(hits)||0);updateAirHud(true);return {perfect:airCombat.perfect,hits:airCombat.hitsTaken} },
   trail: () => windTrail.length,
-  enemies: () => enemies.filter(e=>e.air).map(e=>({name:e.name,wave:e.airWave,hp:e.hp,maxHp:e.maxHp,elite:e.airElite,dead:e.dead,x:+e.root.position.x.toFixed(2),y:+e.root.position.y.toFixed(2),z:+e.root.position.z.toFixed(2)})),
+  boss: () => {
+    const e=enemies.find(x=>x.air&&x.boss&&!x.dead);if(!e)return null;
+    return {name:e.name,hp:e.hp,maxHp:e.maxHp,state:e.state,stateT:+e.stateT.toFixed(2),breakT:+Math.max(0,e.breakT||0).toFixed(2),windEyeCd:+Math.max(0,e.windEyeCd||0).toFixed(2),eyeVisible:!!e.windEye&&e.windEye.visible,executeDone:!!e.executeDone,executeCount:airCombat.executeCount||0,mark:!!ensureAirState().executeMark};
+  },
+  triggerEye: () => { const e=enemies.find(x=>x.air&&x.boss&&!x.dead);return e?startBossWindEye(e):false },
+  bossHp: pct => { const e=enemies.find(x=>x.air&&x.boss&&!x.dead);if(!e)return null;e.hp=Math.max(1,Math.floor(e.maxHp*(+pct||.5)));updateAirHud(true);return e.hp },
+  enemies: () => enemies.filter(e=>e.air).map(e=>({name:e.name,wave:e.airWave,hp:e.hp,maxHp:e.maxHp,elite:e.airElite,boss:!!e.boss,state:e.state,breakT:e.breakT||0,dead:e.dead,x:+e.root.position.x.toFixed(2),y:+e.root.position.y.toFixed(2),z:+e.root.position.z.toFixed(2)})),
   killAll: () => {
     const alive=enemies.filter(e=>e.air&&!e.dead);
     alive.forEach(e=>{e.hp=1;killEnemy(e)});
