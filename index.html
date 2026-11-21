@@ -485,6 +485,9 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .ah-break .ab-dots i{width:9px;height:9px;transform:rotate(45deg);border:1px solid rgba(120,220,255,.24);background:rgba(20,60,80,.3);transition:all .15s}
 .ah-break .ab-dots i.on{background:linear-gradient(135deg,#c8fdff,#2fc8ff);border-color:#c8fdff;box-shadow:0 0 8px rgba(70,225,255,.6)}
 .ah-break #ah-break-n{color:#eaffff;font-weight:700;min-width:25px}
+.ah-break .ab-ember{display:none;align-items:center;gap:3px;padding:1px 5px;border:1px solid rgba(255,205,110,.28);border-radius:2px;background:rgba(70,48,18,.28);color:#ffd98a;letter-spacing:.3px;white-space:nowrap}
+.ah-break .ab-ember.on{display:inline-flex}
+.ah-break .ab-ember b{color:#fff0c0;font-weight:700}
 .ah-break .ab-perfect{margin-left:auto;color:#9fe8ff}
 .ah-break .ab-perfect b{color:#eaffff}
 .ah-boss{display:none;margin-top:7px;padding-top:6px;border-top:1px solid rgba(255,205,110,.2)}
@@ -496,6 +499,8 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .ah-boss-mark{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,240,200,.65);z-index:3;pointer-events:none}
 .ah-boss-mark.m60{left:60%}.ah-boss-mark.m25{left:25%;background:rgba(255,170,110,.8)}
 .ah-boss-bar>i{display:block;height:100%;width:100%;border-radius:2px;background:linear-gradient(90deg,#a86b2d,#ffe08a);box-shadow:0 0 8px rgba(255,200,80,.7);transition:width .18s}
+.ah-boss-hint{margin-top:5px;font-size:9.5px;line-height:1.45;color:#9fd8e8;letter-spacing:.45px}
+.ah-boss-hint.danger{color:#ffc27a}
 .ah-alt{color:#72e4ff}
 .ah-tip{margin-top:5px;font-size:9.5px;color:#6096aa;letter-spacing:.55px}
 .air-modal{width:min(452px,94vw)}
@@ -621,8 +626,8 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
     <div class="ah-top"><span class="ah-ico">🪽</span><span class="ah-title">云海斗场</span><span class="ah-time" id="ah-time">00:00.0</span></div>
     <div class="ah-bar"><i id="ah-bar"></i></div>
     <div class="ah-meta"><span>第 <b id="ah-wave">1/3</b> 波</span><span>余妖龙 <b id="ah-left">0</b></span><span class="ah-alt" id="ah-alt">云台 +0m</span></div>
-    <div class="ah-break"><span>破风</span><span class="ab-dots"><i id="ab-0"></i><i id="ab-1"></i><i id="ab-2"></i></span><span id="ah-break-n">0/3</span><span class="ab-perfect">完美 <b id="ah-perfect">0</b></span></div>
-    <div class="ah-boss" id="ah-boss"><div class="ah-boss-head"><span>云海龙将</span><b id="ah-boss-phase">风眼凝势</b></div><div class="ah-boss-bar"><i id="ah-boss-fill"></i><span class="ah-boss-mark m60"></span><span class="ah-boss-mark m25"></span></div></div>
+    <div class="ah-break"><span>破风</span><span class="ab-dots"><i id="ab-0"></i><i id="ab-1"></i><i id="ab-2"></i></span><span id="ah-break-n">0/3</span><span class="ab-ember" id="ah-ember">✦ 余烬 <b>0</b></span><span class="ab-perfect">完美 <b id="ah-perfect">0</b></span></div>
+    <div class="ah-boss" id="ah-boss"><div class="ah-boss-head"><span>云海龙将</span><b id="ah-boss-phase">风眼凝势</b></div><div class="ah-boss-bar"><i id="ah-boss-fill"></i><span class="ah-boss-mark m60"></span><span class="ah-boss-mark m25"></span></div><div class="ah-boss-hint" id="ah-boss-hint"></div></div>
     <div class="ah-tip">Tab 锁定 · 左键追身连击 · 右键瞬步/破风眼 · 空格/Z 升降 · H 收翼 · Q 离场</div>
   </div>
   <div id="bounty-track" hidden title="点击打开悬赏榜">
@@ -63912,9 +63917,10 @@ function makeBossWindEye(e){
   e.windEye=g;e.windEyeCore=core;e.windEyeHalo=halo;
   const twin=new THREE.Group();twin.position.set(0,e.height*.88,e.radius*1.35);
   const real=new THREE.Sprite(new THREE.SpriteMaterial({map:airRuneTexture(),color:0xffd36a,transparent:true,opacity:.9,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending}));
-  real.scale.set(2.2,2.2,1);real.position.set(1.35,0,.12);real.renderOrder=12;twin.add(real);
-  const fake=new THREE.Sprite(new THREE.SpriteMaterial({map:airRuneTexture(),color:0x8aa1b0,transparent:true,opacity:.45,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending}));
-  fake.scale.set(1.7,1.7,1);fake.position.set(-1.35,0,.12);fake.renderOrder=11;twin.add(fake);
+  real.scale.set(2.0,2.0,1);real.position.set(2.05,0,.12);real.renderOrder=12;twin.add(real);
+  // 假眼用普通混合而不是加法混合：灰蓝色在暖色天空上也能显出轮廓，不会被亮金真眼吞掉。
+  const fake=new THREE.Sprite(new THREE.SpriteMaterial({map:airRuneTexture(),color:0x708898,transparent:true,opacity:.68,depthWrite:false,depthTest:false,blending:THREE.NormalBlending}));
+  fake.scale.set(1.6,1.6,1);fake.position.set(-2.05,0,.12);fake.renderOrder=11;twin.add(fake);
   twin.visible=false;e.root.add(twin);
   e.twinGroup=twin;e.twinReal=real;e.twinFake=fake;
 }
@@ -63960,7 +63966,11 @@ function clearAirBursts(){
   while(airBursts.length){const b=airBursts.pop();scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose()}
 }
 function clearWindEmbers(){
-  while(windEmbers.length){const e=windEmbers.pop();scene.remove(e.mesh);e.mesh.material.dispose()}
+  while(windEmbers.length){
+    const e=windEmbers.pop();
+    scene.remove(e.mesh);e.mesh.material.dispose();
+    if(e.ring){scene.remove(e.ring);e.ring.geometry.dispose();e.ring.material.dispose()}
+  }
 }
 function spawnWindEmbers(e,n=2){
   if(!e||e.dead||!playerModel)return 0;
@@ -63968,9 +63978,15 @@ function spawnWindEmbers(e,n=2){
   for(let i=0;i<n;i++){
     const a=Math.random()*Math.PI*2,r=1.7+Math.random()*1.8;
     const pos=base.clone().add(new THREE.Vector3(Math.cos(a)*r,Math.sin(a)*.55+.3,Math.sin(a)*r));
-    const mat=new THREE.SpriteMaterial({map:airRuneTexture(),color:i?0x9ff4ff:0xffe08a,transparent:true,opacity:.88,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending});
+    const col=i?0x9ff4ff:0xffe08a;
+    const mat=new THREE.SpriteMaterial({map:airRuneTexture(),color:col,transparent:true,opacity:.88,depthWrite:false,depthTest:false,blending:THREE.AdditiveBlending});
     const sp=new THREE.Sprite(mat);sp.position.copy(pos);sp.scale.setScalar(.52+Math.random()*.16);sp.renderOrder=9;
-    scene.add(sp);windEmbers.push({mesh:sp,t:0,life:7.5,baseY:pos.y,phase:Math.random()*6.28,spin:(Math.random()-.5)*1.2});
+    // 地面光环：余烬落在屋顶/云台上时也能被一眼看到，避免只看见小光点。
+    const ringGeo=new THREE.RingGeometry(.26,.42,24);
+    const ringMat=new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:.42,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false,depthTest:false});
+    const ring=new THREE.Mesh(ringGeo,ringMat);ring.rotation.x=-Math.PI/2;ring.position.set(pos.x,pos.y-.55,pos.z);ring.renderOrder=8;
+    scene.add(sp);scene.add(ring);
+    windEmbers.push({mesh:sp,ring,t:0,life:7.5,baseY:pos.y,phase:Math.random()*6.28,spin:(Math.random()-.5)*1.2});
   }
   return n;
 }
@@ -63980,6 +63996,12 @@ function updateWindEmbers(dt,time){
     e.mesh.position.y=e.baseY+Math.sin(time*3.2+e.phase)*.24;
     e.mesh.material.opacity=.88*Math.max(0,1-e.t/e.life);
     e.mesh.scale.setScalar(.52+Math.sin(time*4+e.phase)*.08);
+    if(e.ring){
+      e.ring.position.set(e.mesh.position.x,e.mesh.position.y-.55,e.mesh.position.z);
+      e.ring.scale.setScalar(1+Math.sin(time*4.6+e.phase)*.14);
+      e.ring.material.opacity=.42*Math.max(0,1-e.t/e.life);
+      e.ring.rotation.z+=dt*1.2;
+    }
     if(playerModel&&!GS.dead&&airCombat.active){
       const d=e.mesh.position.distanceTo(playerModel.position);
       if(d<4.2){
@@ -63991,11 +64013,19 @@ function updateWindEmbers(dt,time){
         if(!full)airCombat.breakMeter=Math.min(3,airCombat.breakMeter+1);
         GS.p.qi=Math.min(GS.p.mqi,GS.p.qi+4);
         floater(full?'风核余烬 · 斗气 +4':'风核余烬 · 破风 +1',0xffe08a,e.mesh.position.clone(),{y:1.1},'heal');
-        scene.remove(e.mesh);e.mesh.material.dispose();windEmbers.splice(i,1);
+        spawnBossRing(e.mesh.position.clone(),full?0x9ff4ff:0xffe08a,2.4,.4);
+        sfxEmber();
+        scene.remove(e.mesh);e.mesh.material.dispose();
+        if(e.ring){scene.remove(e.ring);e.ring.geometry.dispose();e.ring.material.dispose()}
+        windEmbers.splice(i,1);
         updateAirHud(true);saveGame();continue;
       }
     }
-    if(e.t>=e.life){scene.remove(e.mesh);e.mesh.material.dispose();windEmbers.splice(i,1)}
+    if(e.t>=e.life){
+      scene.remove(e.mesh);e.mesh.material.dispose();
+      if(e.ring){scene.remove(e.ring);e.ring.geometry.dispose();e.ring.material.dispose()}
+      windEmbers.splice(i,1);
+    }
   }
 }
 function spawnBreakBurst(){
@@ -64247,11 +64277,13 @@ function updateAirEnemy(e,dt,time,playerPos){
     const on=e.state==='twinEye'&&!e.twinDone;
     e.twinGroup.visible=on;
     if(on){
+      // 双风眼组始终把两眼排在屏幕水平方向：龙将朝向冻结时，眼睛也不会被龙头或翅膀挡成一个点。
+      e.twinGroup.rotation.y=cameraYaw-e.root.rotation.y;
       e.twinReal.position.y=Math.sin(time*6.4)*.1;
       e.twinFake.position.y=Math.sin(time*6.4+1.7)*.07;
       const pulse=.5+Math.sin(time*5.2)*.12;
       e.twinReal.material.opacity=.82+pulse*.15;
-      e.twinFake.material.opacity=.34+pulse*.14;
+      e.twinFake.material.opacity=.62+pulse*.12;
       e.twinReal.scale.setScalar(2.15+pulse*.22);
       e.twinFake.scale.setScalar(1.65+pulse*.14);
     }
@@ -66889,6 +66921,7 @@ function sfxBreak(){tone(180,.3,'sawtooth',.08,0,-120);tone(640,.16,'triangle',.
 function sfxSkill(){tone(440,.1,'triangle',.1);tone(660,.12,'triangle',.08,.06);tone(880,.16,'triangle',.06,.12)}
 function sfxKill(){tone(392,.16,'triangle',.1);tone(587,.18,'triangle',.08,.09);tone(784,.2,'triangle',.06,.18)}
 function sfxHeal(){tone(440,.2,'sine',.08);tone(660,.24,'sine',.06,.12)}
+function sfxEmber(){tone(880,.12,'sine',.07);tone(1320,.17,'triangle',.055,.07);tone(1760,.2,'sine',.04,.14)}
 function sfxLevel(){tone(523,.14,'triangle',.1);tone(659,.14,'triangle',.09,.09);tone(784,.2,'triangle',.08,.18)}
 function sfxBreakthrough(){[262,330,392,523,659,784].forEach((f,i)=>tone(f,.4,'sine',.08,i*.08))}
 const audioOnce=()=>{audioInit();document.removeEventListener('pointerdown',audioOnce);document.removeEventListener('keydown',audioOnce)};
@@ -67223,10 +67256,10 @@ function startBossTwinEye(e){
   e.twinBaseYaw=e.root.rotation.y;
   e.twinRealSide=e.twinRealSide===1?-1:1;
   if(e.twinGroup){
-    e.twinGroup.visible=true;e.twinGroup.rotation.set(0,0,0);
-    e.twinReal.position.x=e.twinRealSide*1.35;e.twinFake.position.x=-e.twinRealSide*1.35;
-    e.twinReal.material.opacity=.95;e.twinFake.material.opacity=.42;
-    e.twinReal.scale.set(2.2,2.2,1);e.twinFake.scale.set(1.7,1.7,1);
+    e.twinGroup.visible=true;e.twinGroup.rotation.y=cameraYaw-e.root.rotation.y;
+    e.twinReal.position.x=e.twinRealSide*2.05;e.twinFake.position.x=-e.twinRealSide*2.05;
+    e.twinReal.material.opacity=.95;e.twinFake.material.opacity=.68;
+    e.twinReal.scale.set(2.0,2.0,1);e.twinFake.scale.set(1.6,1.6,1);
   }
   if(e.windEye)e.windEye.visible=false;
   if(e.airRune)e.airRune.visible=false;
@@ -67512,21 +67545,30 @@ function updateAirHud(force=false){
   const bm=Math.max(0,Math.min(3,airCombat.breakMeter||0));
   for(let i=0;i<3;i++){const dot=$('ab-'+i);if(dot)dot.classList.toggle('on',i<bm)}
   $('ah-break-n').textContent=bm+'/3';
+  const emberEl=$('ah-ember');
+  if(emberEl){
+    const n=windEmbers.length;
+    emberEl.classList.toggle('on',n>0);
+    const b=emberEl.querySelector('b');if(b)b.textContent=n;
+  }
   $('ah-perfect').textContent=airCombat.perfect||0;
   const boss=enemies.find(e=>e.air&&e.boss&&!e.dead);
   const bossBox=$('ah-boss');
   if(bossBox)bossBox.classList.toggle('on',!!boss);
   if(boss){
     let phase='风眼凝势';
-    if(boss.state==='windeye')phase='风眼 '+(Math.max(0,2.2-boss.stateT)).toFixed(1)+'s';
-    else if(boss.state==='broken')phase='破绽 '+(Math.max(0,boss.breakT||0)).toFixed(1)+'s';
-    else if(boss.state==='phase2')phase='风核狂暴';
-    else if(boss.state==='twinEye')phase='双风眼 '+(Math.max(0,2.6-boss.stateT)).toFixed(1)+'s';
-    else if(boss.state==='tornado')phase='龙卷牵引 '+(Math.max(0,boss.tornadoT||0)).toFixed(1)+'s';
-    else if(boss.state==='final')phase='风核破灭 '+(Math.max(0,boss.finalT||0)).toFixed(1)+'s';
-    else if(boss.phase===2)phase='风核狂暴';
-    else if(boss.executeDone)phase='风核已碎';
+    let hint='风眼将现 · 注意金光';
+    if(boss.state==='windeye'){phase='风眼 '+(Math.max(0,2.2-boss.stateT)).toFixed(1)+'s';hint='右键破风斩 · 打碎风眼'}
+    else if(boss.state==='broken'){phase='破绽 '+(Math.max(0,boss.breakT||0)).toFixed(1)+'s';hint='右键破风斩 · 触发处决'}
+    else if(boss.state==='phase2'){phase='风核狂暴';hint='风核狂暴 · 下一轮将睁双风眼'}
+    else if(boss.state==='twinEye'){phase='双风眼 '+(Math.max(0,2.6-boss.stateT)).toFixed(1)+'s';hint='靠近金眼 · 灰眼是假眼'}
+    else if(boss.state==='tornado'){phase='龙卷牵引 '+(Math.max(0,boss.tornadoT||0)).toFixed(1)+'s';hint='按住 W + 空格 · 逆风挣脱'}
+    else if(boss.state==='final'){phase='风核破灭 '+(Math.max(0,boss.finalT||0)).toFixed(1)+'s';hint='贴近龙将 · 右键三连破风斩'}
+    else if(boss.phase===2){phase='风核狂暴';hint='风核狂暴 · 看准金眼再出斩'}
+    else if(boss.executeDone){phase='风核已碎';hint='准备迎接下一次破绽'}
     const phaseEl=$('ah-boss-phase');if(phaseEl)phaseEl.textContent=phase;
+    const hintEl=$('ah-boss-hint');
+    if(hintEl){hintEl.textContent=hint;hintEl.classList.toggle('danger',boss.state==='tornado'||boss.state==='final')}
     const fill=$('ah-boss-fill');if(fill)fill.style.width=Math.max(0,Math.min(100,boss.hp/boss.maxHp*100))+'%';
   }
   const alt=playerModel?playerModel.position.y-SKY_TOP:0;
@@ -67664,6 +67706,13 @@ window.__airDebug = {
     const e=enemies.find(x=>x.air&&x.boss&&!x.dead);if(!e||!e.twinReal||!e.twinFake)return null;
     e.root.updateMatrixWorld(true);const r=new THREE.Vector3(),f=new THREE.Vector3();e.twinReal.getWorldPosition(r);e.twinFake.getWorldPosition(f);
     return {real:r.toArray().map(v=>+v.toFixed(2)),fake:f.toArray().map(v=>+v.toFixed(2)),realSide:e.twinRealSide};
+  },
+  twinScreen: () => {
+    const e=enemies.find(x=>x.air&&x.boss&&!x.dead);if(!e||!e.twinReal||!e.twinFake)return null;
+    e.root.updateMatrixWorld(true);const r=new THREE.Vector3(),f=new THREE.Vector3();e.twinReal.getWorldPosition(r);e.twinFake.getWorldPosition(f);
+    const w=renderer.domElement.clientWidth,h=renderer.domElement.clientHeight;
+    const rp=r.clone().project(camera),fp=f.clone().project(camera);
+    return {real:[+((rp.x+1)*.5*w).toFixed(1),+((1-rp.y)*.5*h).toFixed(1)],fake:[+((fp.x+1)*.5*w).toFixed(1),+((1-fp.y)*.5*h).toFixed(1)]};
   },
   aimTwin: (side='real',gap=1.9) => {
     const e=enemies.find(x=>x.air&&x.boss&&!x.dead);if(!e||!e.twinReal||!playerModel)return false;
