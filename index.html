@@ -67161,6 +67161,7 @@ window.__airDebug = {
   dodge: () => { playerDodge(); return { perfect: airCombat.perfect, breakMeter: airCombat.breakMeter } },
   setBreak: n => { airCombat.breakMeter=Math.max(0,Math.min(3,Number(n)||0));updateAirHud(true);return airCombat.breakMeter },
   setStats: (perfect,hits) => { airCombat.perfect=Math.max(0,Number(perfect)||0);airCombat.hitsTaken=Math.max(0,Number(hits)||0);updateAirHud(true);return {perfect:airCombat.perfect,hits:airCombat.hitsTaken} },
+  trail: () => windTrail.length,
   enemies: () => enemies.filter(e=>e.air).map(e=>({name:e.name,wave:e.airWave,hp:e.hp,maxHp:e.maxHp,elite:e.airElite,dead:e.dead,x:+e.root.position.x.toFixed(2),y:+e.root.position.y.toFixed(2),z:+e.root.position.z.toFixed(2)})),
   killAll: () => {
     const alive=enemies.filter(e=>e.air&&!e.dead);
