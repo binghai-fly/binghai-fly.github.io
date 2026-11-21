@@ -480,6 +480,13 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .ah-bar>i{display:block;height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#2c8cb8,#8ff4ff);box-shadow:0 0 9px rgba(80,225,255,.7);transition:width .2s}
 .ah-meta{display:flex;justify-content:space-between;gap:10px;font-size:10.5px;color:#8fc4d8}
 .ah-meta b{color:#f0ffff;font-weight:700}
+.ah-break{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:9.5px;color:#8fc4d8;letter-spacing:.6px}
+.ah-break .ab-dots{display:flex;gap:3px}
+.ah-break .ab-dots i{width:9px;height:9px;transform:rotate(45deg);border:1px solid rgba(120,220,255,.24);background:rgba(20,60,80,.3);transition:all .15s}
+.ah-break .ab-dots i.on{background:linear-gradient(135deg,#c8fdff,#2fc8ff);border-color:#c8fdff;box-shadow:0 0 8px rgba(70,225,255,.6)}
+.ah-break #ah-break-n{color:#eaffff;font-weight:700;min-width:25px}
+.ah-break .ab-perfect{margin-left:auto;color:#9fe8ff}
+.ah-break .ab-perfect b{color:#eaffff}
 .ah-alt{color:#72e4ff}
 .ah-tip{margin-top:5px;font-size:9.5px;color:#6096aa;letter-spacing:.55px}
 .air-modal{width:min(452px,94vw)}
@@ -498,6 +505,10 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .air-ghost{border:1px solid var(--gold-line);background:rgba(30,27,42,.75);color:#c8c2d2}
 .air-ghost:hover{border-color:var(--gold);color:var(--gold-b)}
 .air-res-badge{font-family:var(--kai);font-size:14px;text-align:center;color:#8eeaff;letter-spacing:4px;margin:0 0 2px}
+.air-res-rank{font-family:var(--kai);font-size:48px;line-height:1;text-align:center;margin:2px 0 0;letter-spacing:2px;text-shadow:0 0 22px rgba(120,235,255,.6)}
+.air-res-rank.S{color:#ffe08a;text-shadow:0 0 26px rgba(255,200,70,.8),0 0 60px rgba(255,190,40,.35)}
+.air-res-rank.A{color:#9fe8ff;text-shadow:0 0 22px rgba(80,220,255,.7)}
+.air-res-rank.B{color:#b9c9d0}.air-res-rank.C{color:#8a9ba5}
 .air-res-title{font-family:var(--kai);font-size:40px;line-height:1.1;text-align:center;color:#fff;text-shadow:0 0 26px #58d8ff,0 0 60px rgba(70,180,255,.5);margin:0 0 4px}
 .air-res-sub{text-align:center;color:#8aaebd;font-size:11px;letter-spacing:2px;margin-bottom:14px}
 .air-res-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:10px}
@@ -601,6 +612,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
     <div class="ah-top"><span class="ah-ico">🪽</span><span class="ah-title">云海斗场</span><span class="ah-time" id="ah-time">00:00.0</span></div>
     <div class="ah-bar"><i id="ah-bar"></i></div>
     <div class="ah-meta"><span>第 <b id="ah-wave">1/3</b> 波</span><span>余妖龙 <b id="ah-left">0</b></span><span class="ah-alt" id="ah-alt">云台 +0m</span></div>
+    <div class="ah-break"><span>破风</span><span class="ab-dots"><i id="ab-0"></i><i id="ab-1"></i><i id="ab-2"></i></span><span id="ah-break-n">0/3</span><span class="ab-perfect">完美 <b id="ah-perfect">0</b></span></div>
     <div class="ah-tip">Tab 锁定 · 左键追身连击 · 右键瞬步 · 空格/Z 升降 · H 收翼 · Q 离场</div>
   </div>
   <div id="bounty-track" hidden title="点击打开悬赏榜">
@@ -63857,6 +63869,9 @@ let AIR_RUNE_TEXTURE=null,AIR_SHOT_GLOW_MAT=null;
 const AIR_SHOT_GEO=new THREE.RingGeometry(.22,.58,18,1,0,Math.PI*1.12);
 const AIR_SHOT_MAT=new THREE.MeshBasicMaterial({color:0x27d6ff,transparent:true,opacity:.92,side:THREE.DoubleSide,depthWrite:false});
 const airShots=[];
+const airBursts=[];
+const windTrail=[];
+let windTrailT=0;
 function airRuneTexture(){
   if(AIR_RUNE_TEXTURE)return AIR_RUNE_TEXTURE;
   const c=document.createElement('canvas');c.width=c.height=128;const g=c.getContext('2d');
@@ -63911,6 +63926,53 @@ function spawnAirShot(e,origin,dir){
 }
 function clearAirShots(){
   while(airShots.length){const s=airShots.pop();scene.remove(s.mesh)}
+}
+function clearAirBursts(){
+  while(airBursts.length){const b=airBursts.pop();scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose()}
+}
+function spawnBreakBurst(){
+  if(!playerModel)return;
+  const pos=playerModel.position.clone();pos.y+=1.0;
+  for(let i=0;i<2;i++){
+    const geo=new THREE.RingGeometry(.5,1.1,32);
+    const mat=new THREE.MeshBasicMaterial({color:i?0x9ff4ff:0xffe08a,transparent:true,opacity:.82,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false});
+    const ring=new THREE.Mesh(geo,mat);
+    ring.position.copy(pos);
+    if(i){ring.rotation.set(Math.PI/2,0,.35);ring.position.y+=.25}
+    else ring.rotation.x=-Math.PI/2;
+    ring.scale.setScalar(.7+i*.25);
+    scene.add(ring);
+    airBursts.push({mesh:ring,t:0,life:.5+i*.08,maxScale:4.2+i*1.3});
+  }
+}
+function updateAirBursts(dt){
+  for(let i=airBursts.length-1;i>=0;i--){
+    const b=airBursts[i];b.t+=dt;
+    const k=Math.min(1,b.t/b.life);
+    b.mesh.scale.setScalar(.7+k*(b.maxScale-.7));
+    b.mesh.material.opacity=.82*(1-k);
+    if(b.t>=b.life){scene.remove(b.mesh);b.mesh.geometry.dispose();b.mesh.material.dispose();airBursts.splice(i,1)}
+  }
+}
+function updateWindTrail(dt){
+  for(let i=windTrail.length-1;i>=0;i--){
+    const p=windTrail[i];p.t+=dt;const k=Math.min(1,p.t/p.life);
+    p.mesh.material.opacity=.36*(1-k);
+    p.mesh.scale.setScalar(.72+k*.5);
+    if(p.t>=p.life){scene.remove(p.mesh);p.mesh.material.dispose();windTrail.splice(i,1)}
+  }
+  if(!GS.p||!GS.p.air||!GS.p.air.windMark||!wingsOn||!playerModel)return;
+  if(playerModel.position.y<=groundY+.2)return;
+  windTrailT+=dt;
+  if(windTrailT>.1)windTrailT=0;
+  if(windTrailT!==0)return;
+  const mat=new THREE.SpriteMaterial({map:airRuneTexture(),color:0x8ff4ff,transparent:true,opacity:.36,depthWrite:false,blending:THREE.AdditiveBlending});
+  const sp=new THREE.Sprite(mat);
+  const fwd=new THREE.Vector3(Math.sin(playerModel.rotation.y),0,Math.cos(playerModel.rotation.y));
+  const pos=playerModel.position.clone().addScaledVector(fwd,-1.35);pos.y+=1.2;
+  pos.x+=(Math.random()-.5)*1.05;pos.z+=(Math.random()-.5)*1.05;
+  sp.position.copy(pos);sp.scale.setScalar(.55+Math.random()*.4);
+  scene.add(sp);windTrail.push({mesh:sp,t:0,life:.45});
 }
 function updateAirShots(dt){
   for(let i=airShots.length-1;i>=0;i--){
@@ -64238,6 +64300,15 @@ function airLungeAssist(){
 function playerAttack(){
   if(!canAct()||dodging)return;
   if(attackAnimT>0){if(attackAnimT<.28)attackBuffered=true;return}
+  if(airCombat.active&&airCombat.breakMeter>=3&&wingsOn){
+    airCombat.breakMeter=0;updateAirHud(true);
+    faceTarget();airLungeAssist();
+    attackAnimT=.72;
+    pendingAttack={at:gameTime+.18,combo:3,break:true};
+    playAnim('Attack',true);sfxBreak();
+    showBanner('❄ 破风 · 斩',1000);
+    return;
+  }
   const now=gameNow();
   comboCount=(now-comboLast<900)?(comboCount+1):1;
   if(comboCount>3)comboCount=1;
@@ -64260,6 +64331,10 @@ function updateCombat(dt){
     if(a.skill){
       const sk=a.skill,origin={x:playerModel.position.x,z:playerModel.position.z};
       spawnSkillFx(sk,origin);hitEnemies(sk.range,sk.arc,GS.p.atk,sk.mul,true,origin,1.2);sfxSkill();
+    }else if(a.break){
+      hitEnemies(4.2,180,GS.p.atk,1.8,true,null,1.5);
+      spawnBreakBurst();impact(playerModel.position,true);
+      floater('破风 · 斩',0xbffcff,new THREE.Vector3().copy(playerModel.position),{y:2.8},'crit');
     }else{
       hitEnemies(2.8,a.combo===3?140:95,GS.p.atk,a.combo===3?1.6:1+.12*(a.combo-1),false,null,a.combo===3?1.1:.25);
       if(a.combo===3)floater('三段 · 破',0xffd23e,playerModel.position,{y:2.4},'crit');
@@ -64268,9 +64343,39 @@ function updateCombat(dt){
   attackAnimT=Math.max(0,attackAnimT-dt);
   if(!attackAnimT&&attackBuffered){attackBuffered=false;playerAttack()}
 }
+function airThreatWindow(){
+  if(!airCombat.active||!playerModel||GS.dead||!playerAlive)return false;
+  const target=playerModel.position.clone();target.y+=1.05;
+  for(const s of airShots){
+    if(!s.mesh)continue;
+    const dist=s.mesh.position.distanceTo(target);
+    if(dist>5.4)continue;
+    const to=target.clone().sub(s.mesh.position);
+    const speed=s.vel.length();
+    if(speed<.1)continue;
+    if(s.vel.dot(to)/speed<.45)continue;
+    if(dist/speed<.55)return true;
+  }
+  for(const e of enemies){
+    if(!e.air||e.dead||e.state!=='attack')continue;
+    if(e.stateT>=.28&&e.stateT<=.82&&e.root.position.distanceTo(playerModel.position)<10)return true;
+  }
+  return false;
+}
+function markPerfectDodge(){
+  airCombat.perfect++;
+  airCombat.breakMeter=Math.min(3,airCombat.breakMeter+1);
+  GS.p.qi=Math.min(GS.p.mqi,GS.p.qi+6);
+  const full=airCombat.breakMeter>=3;
+  showBanner(full?'❄ 完美瞬步 · 破风满溢':'❄ 完美瞬步 · 破风 +1',1200);
+  floater(full?'破风满溢':'完美瞬步',0x9ff4ff,new THREE.Vector3().copy(playerModel.position),{y:2.5},'heal');
+  try{tone(980,.1,'sine',.06);tone(1320,.18,'triangle',.05,.08)}catch(err){}
+  updateAirHud(true);
+}
 function playerDodge(){
   const now=gameNow();
   if(dodgeCd>now||!canAct())return;
+  const perfect=airThreatWindow();
   dodgeCd=now+850;
   dodgeT=now+380;
   sfxDodge();
@@ -64283,7 +64388,8 @@ function playerDodge(){
   dir.normalize();
   dodging=true;pendingAttack=null;attackBuffered=false;attackAnimT=0;
   playAnim('Run');
-  floater('瞬步',0x5ab8ff,new THREE.Vector3().copy(playerModel.position),{y:2.3},'info');
+  if(perfect)markPerfectDodge();
+  else floater('瞬步',0x5ab8ff,new THREE.Vector3().copy(playerModel.position),{y:2.3},'info');
 }
 function castSkill(sk){
   if(!canAct()||!sk||!GS.p.skills.includes(sk.id)||dodging||attackAnimT>0)return;
@@ -64364,6 +64470,7 @@ function cycleLock(){
 function findEnemyById(id){return enemies.find(e=>e.id===id)}
 function damagePlayer(dmg){
   if(!canAct()||gameNow()<dodgeT)return;
+  if(airCombat.active)airCombat.hitsTaken++;
   dmg=Math.max(1,Math.round(dmg-GS.p.def*.45));
   const p=GS.p;
   p.hp-=dmg;
@@ -65859,6 +65966,7 @@ function animate(t,forcedDelta){
     updateShops(delta);
     updateInteraction();
     updateWings(delta);
+    updateWindTrail(delta);
     updateWindTrial(delta, time);
     updateAirCombat(delta,time);
     if (bmOpen) { if (gameTime - bmDrawT > 0.15) { bmDrawT = gameTime; drawBigMap() } }
@@ -66566,6 +66674,7 @@ function sfxHit(){tone(190,.12,'square',.1,0,-80);tone(90,.14,'sawtooth',.08,.01
 function sfxCrit(){tone(260,.18,'square',.12,0,-120);tone(520,.14,'triangle',.1,.03)}
 function sfxHurt(){tone(300,.2,'sawtooth',.12,0,-160)}
 function sfxDodge(){tone(700,.12,'sine',.07,0,300)}
+function sfxBreak(){tone(180,.3,'sawtooth',.08,0,-120);tone(640,.16,'triangle',.075,.04);tone(1180,.22,'sine',.055,.16)}
 function sfxSkill(){tone(440,.1,'triangle',.1);tone(660,.12,'triangle',.08,.06);tone(880,.16,'triangle',.06,.12)}
 function sfxKill(){tone(392,.16,'triangle',.1);tone(587,.18,'triangle',.08,.09);tone(784,.2,'triangle',.06,.18)}
 function sfxHeal(){tone(440,.2,'sine',.08);tone(660,.24,'sine',.06,.12)}
@@ -66717,12 +66826,14 @@ const AIR_WAVES=[
   {n:'裂云翼龙',count:2,hp:160,atk:14,def:3,xp:190,g:70,h:2.9,alt:.2,orbit:10.0,speed:8.2,form:[[-6.3,-4.2,.45],[6.2,-5.0,.6]]},
   {n:'云海龙将',count:1,hp:420,atk:20,def:5,xp:520,g:220,h:3.9,alt:.35,orbit:9.2,speed:8.8,elite:true,form:[[0,-8.2,.55]]},
 ];
-const airCombat={active:false,wave:0,need:0,killed:0,waveOn:false,clearAt:0,nextWaveAt:0,startTime:0,ended:false,hudT:0,result:null};
+const airCombat={active:false,wave:0,need:0,killed:0,waveOn:false,clearAt:0,nextWaveAt:0,startTime:0,ended:false,hudT:0,result:null,perfect:0,breakMeter:0,hitsTaken:0};
 function ensureAirState(){
-  if(!GS.p.air||typeof GS.p.air!=='object')GS.p.air={clears:0,best:0,first:false};
+  if(!GS.p.air||typeof GS.p.air!=='object')GS.p.air={clears:0,best:0,first:false,sRank:false,windMark:false};
   GS.p.air.clears=Math.max(0,Number(GS.p.air.clears)||0);
   GS.p.air.best=Math.max(0,Number(GS.p.air.best)||0);
   GS.p.air.first=!!GS.p.air.first;
+  GS.p.air.sRank=!!GS.p.air.sRank;
+  GS.p.air.windMark=!!GS.p.air.windMark;
   return GS.p.air;
 }
 function airClock(sec){
@@ -66839,6 +66950,7 @@ function startAirCombat(){
   if(windTrial.active)cancelWindTrial(false);
   resetCombat();
   airCombat.active=true;airCombat.wave=0;airCombat.need=0;airCombat.killed=0;airCombat.waveOn=false;
+  airCombat.perfect=0;airCombat.breakMeter=0;airCombat.hitsTaken=0;
   airCombat.clearAt=0;airCombat.nextWaveAt=gameTime+1.6;airCombat.startTime=gameTime;airCombat.ended=false;airCombat.result=null;
   playerModel.position.set(SKY_X,SKY_TOP+.02,SKY_Z);velocityY=0;jumpsLeft=maxJumps;
   GS.p.hp=Math.min(GS.p.mhp,GS.p.hp+Math.floor(GS.p.mhp*.35));
@@ -66887,6 +66999,7 @@ function onAirKill(e){
 function failAirCombat(reason){
   airCombat.active=false;airCombat.waveOn=false;
   clearAirShots();
+  clearAirBursts();
   for(const e of enemies.filter(x=>x.air))removeAirEnemy(e);
   GS.lockedId=null;$('lock-arrow').classList.remove('on');$('lock-name').textContent='';
   updateAirHud(true);
@@ -66903,6 +67016,7 @@ function cancelAirCombat(reason='quit',silent=false){
   }
   airCombat.active=false;airCombat.waveOn=false;
   clearAirShots();
+  clearAirBursts();
   for(const e of enemies.filter(x=>x.air))removeAirEnemy(e);
   GS.lockedId=null;$('lock-arrow').classList.remove('on');$('lock-name').textContent='';
   updateAirHud(true);
@@ -66927,11 +67041,16 @@ function updateAirHud(force=false){
   $('ah-wave').textContent=wave+'/3';
   $('ah-left').textContent=left;
   $('ah-bar').style.width=Math.min(100,airCombat.need?airCombat.killed/airCombat.need*100:0)+'%';
+  const bm=Math.max(0,Math.min(3,airCombat.breakMeter||0));
+  for(let i=0;i<3;i++){const dot=$('ab-'+i);if(dot)dot.classList.toggle('on',i<bm)}
+  $('ah-break-n').textContent=bm+'/3';
+  $('ah-perfect').textContent=airCombat.perfect||0;
   const alt=playerModel?playerModel.position.y-SKY_TOP:0;
   $('ah-alt').textContent='云台 '+(alt>=0?'+':'-')+Math.abs(alt).toFixed(0)+'m';
 }
 function updateAirCombat(dt,time){
   if(!airArenaGroup)return;
+  updateAirBursts(dt);
   const pulse=.5+.5*Math.sin(time*1.8);
   airArenaRings.forEach((r,i)=>{r.rotation.z+=(i%2?-1:1)*dt*.22*(i+1);r.material.opacity=.18+.12*pulse+i*.04});
   airArenaShards.forEach((s,i)=>{
@@ -66966,6 +67085,13 @@ function updateAirCombat(dt,time){
   airCombat.hudT+=dt;
   if(airCombat.hudT>.12){airCombat.hudT=0;updateAirHud()}
 }
+function airRank(time,perfect,hits){
+  const speed=Math.max(0,Math.min(45,60-time*2.2));
+  const skill=Math.min(36,perfect*12);
+  const defense=Math.max(0,Math.min(28,28-hits*7));
+  const score=Math.round(speed+skill+defense);
+  return {rank:score>=75?'S':score>=52?'A':score>=34?'B':'C',score};
+}
 function finishAirCombat(){
   if(!airCombat.active||airCombat.ended)return;
   airCombat.ended=true;airCombat.active=false;airCombat.waveOn=false;
@@ -66973,16 +67099,23 @@ function finishAirCombat(){
   const ms=Math.floor(elapsed*1000);
   const air=ensureAirState();
   const first=!air.first;
+  const rankInfo=airRank(elapsed,airCombat.perfect,airCombat.hitsTaken);
+  let sReward=0,windUnlock=false;
+  if(rankInfo.rank==='S'&&!air.sRank){
+    air.sRank=true;sReward=500;GS.p.gold+=sReward;
+    if(!air.windMark){air.windMark=true;windUnlock=true;}
+  }
   const rewardGold=first?680+GS.p.ri*80:260+GS.p.ri*50;
   const rewardXp=first?1200:420+GS.p.ri*30;
   GS.p.gold+=rewardGold;gainXp(rewardXp);
   air.clears++;air.best=air.best?Math.min(air.best,ms):ms;air.first=true;
   clearAirShots();
+  clearAirBursts();
   for(const e of enemies.filter(x=>x.air&&!x.dead))removeAirEnemy(e);
   GS.lockedId=null;$('lock-arrow').classList.remove('on');$('lock-name').textContent='';
   updateAirHud(true);
   saveGame();
-  airCombat.result={time:elapsed,ms,rewardGold,rewardXp,first,best:air.best,clears:air.clears};
+  airCombat.result={time:elapsed,ms,rewardGold,rewardXp,first,best:air.best,clears:air.clears,rank:rankInfo.rank,score:rankInfo.score,perfect:airCombat.perfect,hitsTaken:airCombat.hitsTaken,sReward,windUnlock};
   showAirResult();
   sfxBreakthrough();
 }
@@ -66993,14 +67126,18 @@ function showAirResult(){
     <div class="modal air-modal">
       <button class="close" onclick="document.getElementById('modals').innerHTML=''">✕</button>
       <div class="air-res-badge">云 海 破 阵</div>
+      <div class="air-res-rank ${r.rank}">${r.rank}</div>
       <div class="air-res-title">斗 空 归 来</div>
-      <div class="air-res-sub">三波妖龙尽数击落</div>
+      <div class="air-res-sub">三波妖龙尽数击落 · ${r.perfect} 次完美瞬步 · 受击 ${r.hitsTaken} 次</div>
       <div class="air-res-grid">
         <div>本次用时<b>${airClock(r.time)}</b></div>
+        <div>本次评级<b>${r.rank}</b></div>
+        <div>完美瞬步<b>${r.perfect} 次</b></div>
+        <div>受击次数<b>${r.hitsTaken} 次</b></div>
         <div>最快纪录<b>${airBestText(r.best)}</b></div>
         <div>已破阵<b>${r.clears} 次</b></div>
       </div>
-      <div class="air-res-note">${r.first?'首通奖励':'破阵奖励'}：<span class="good">+${r.rewardGold} 金 · +${r.rewardXp} 经验</span>${r.first?'<br><span class="good">永久获得：空中攻击 +8%</span>':''}</div>
+      <div class="air-res-note">${r.first?'首通奖励':'破阵奖励'}：<span class="good">+${r.rewardGold} 金 · +${r.rewardXp} 经验</span>${r.first?'<br><span class="good">永久获得：空中攻击 +8%</span>':''}${r.sReward?'<br><span class="good">S 评级首通 · 额外 +'+r.sReward+' 金</span>':''}${r.windUnlock?'<br><span class="good">解锁：云海风痕 · 冰翼拖尾</span>':''}</div>
       <div class="air-actions"><button class="air-start" data-air-again>再战一场</button><button class="air-ghost" onclick="document.getElementById('modals').innerHTML=''">收势下台</button></div>
     </div>
   </div>`;
@@ -67015,10 +67152,15 @@ window.__airDebug = {
     active: airCombat.active, wave: airCombat.wave, need: airCombat.need, killed: airCombat.killed,
     waveOn: airCombat.waveOn, time: +(gameTime-airCombat.startTime).toFixed(2),
     best: ensureAirState().best, clears: ensureAirState().clears, first: ensureAirState().first,
-    hud: !!$('air-hud')&&!$('air-hud').hidden, wings: !!wingsOn, playerY: playerModel?+playerModel.position.y.toFixed(2):null,
+    perfect: airCombat.perfect, breakMeter: airCombat.breakMeter, hitsTaken: airCombat.hitsTaken,
+    rank: airCombat.result?.rank || '', hud: !!$('air-hud')&&!$('air-hud').hidden, wings: !!wingsOn, playerY: playerModel?+playerModel.position.y.toFixed(2):null,
     lunge: +lastAirLunge.toFixed(2), shots: airShots.length, activeEnemies: enemies.filter(e=>e.air&&!e.dead).length,
     modal: $('modals').childElementCount>0, arena: !!airArenaGroup,
   }),
+  rankOf: (time,perfect,hits) => airRank(+time||0,+perfect||0,+hits||0),
+  dodge: () => { playerDodge(); return { perfect: airCombat.perfect, breakMeter: airCombat.breakMeter } },
+  setBreak: n => { airCombat.breakMeter=Math.max(0,Math.min(3,Number(n)||0));updateAirHud(true);return airCombat.breakMeter },
+  setStats: (perfect,hits) => { airCombat.perfect=Math.max(0,Number(perfect)||0);airCombat.hitsTaken=Math.max(0,Number(hits)||0);updateAirHud(true);return {perfect:airCombat.perfect,hits:airCombat.hitsTaken} },
   enemies: () => enemies.filter(e=>e.air).map(e=>({name:e.name,wave:e.airWave,hp:e.hp,maxHp:e.maxHp,elite:e.airElite,dead:e.dead,x:+e.root.position.x.toFixed(2),y:+e.root.position.y.toFixed(2),z:+e.root.position.z.toFixed(2)})),
   killAll: () => {
     const alive=enemies.filter(e=>e.air&&!e.dead);
