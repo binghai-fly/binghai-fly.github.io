@@ -63098,7 +63098,7 @@ function DRACOWorker() {
 /* ===== /DRACOLoader ===== */
 let playerModel=null,mixer=null,animations={},currentAnim=null,weaponModel=null
 let wings=null,wingL=null,wingR=null,wingMatOuter=null,wingMatInner=null,wingAssetReady=false,wingAssetError=false
-let wingsOn=false,flyCeilMsg=false,wingLean=0;
+let wingsOn=false,flyCeilMsg=false,wingLean=0,wingFoldGlide=0;
 const FLY_CEIL=58;
 const clock=new THREE.Clock();
 const gltfLoader=new GLTFLoader();
@@ -64415,7 +64415,7 @@ const walkSpeed=5,runSpeed=9,jumpForce=8,gravity=-24;
 let reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 try{const saved=localStorage.getItem('dpcq_reduce_motion');if(saved!==null)reducedMotion=saved==='1'}catch(e){}
 function clearInput(){for(const k in keys)keys[k]=false;attackBuffered=false;touchMove.x=touchMove.y=0}
-function resetCombat(){clearInput();pendingAttack=null;attackAnimT=0;dodging=false;dodgeT=0;dodgeCd=0;velocityY=0;jumpsLeft=2;comboCount=0;comboLast=-1e9;hitStop=trauma=0}
+function resetCombat(){clearInput();pendingAttack=null;attackAnimT=0;dodging=false;dodgeT=0;dodgeCd=0;velocityY=0;jumpsLeft=2;comboCount=0;comboLast=-1e9;hitStop=trauma=0;wingFoldGlide=0}
 function pauseGame(){
   if(!GS.ready||GS.dead)return;
   GS.paused=true;clearInput();document.exitPointerLock?.();
@@ -64476,7 +64476,7 @@ window.addEventListener('keydown',e=>{
     case't':doTrain();break;
     case'r':doRest();break;
     case'i':case'b':toggleInventory();break;
-    case'h':if(windTrial.active){showBanner('🌪 试炼中不可收翼');break}else{toggleWings();if(airCombat.active&&!wingsOn)showBanner('🪽 已收翼，正在下落 · 再按 H 展开',1800)}break;
+    case'h':if(windTrial.active){showBanner('🌪 试炼中不可收翼');break}else{toggleWings();if(airCombat.active&&!wingsOn)showBanner('🪽 已收翼，短暂滑翔缓降 · 再按 H 展开',1800)}break;
     case'q':if(airCombat.active)cancelAirCombat('quit',true);break;
     case'/':toggleHelp();break;
     default:{
@@ -65280,8 +65280,10 @@ function bountyTasks(area) {
     {
       id: 'elite:' + area.id, kind: 'elite', icon: '🏹',
       title: '猎首 · ' + elite.n,
-      desc: '取 ' + elite.n + ' 的首级。此獠盘踞 ' + area.n + '，凶名在外。',
-      need: 1, target: elite.n, reward: 260 + area.realm * 140,
+      desc: area.id === 'wutan'
+        ? '取 ' + elite.n + ' 的首级；或登上云海斗场，斩下第三波的云海龙将。'
+        : '取 ' + elite.n + ' 的首级。此獠盘踞 ' + area.n + '，凶名在外。',
+      need: 1, target: elite.n, airTarget: area.id === 'wutan' ? '云海龙将' : '', reward: 260 + area.realm * 140,
       areaId: area.id, areaName: area.n,
     },
     {
@@ -65297,7 +65299,7 @@ function bountyTasks(area) {
 function bountyObjective(a) {
   if (!a) return ''
   if (a.kind === 'clear') return '讨伐进度 ' + Math.min(a.progress, a.need) + ' / ' + a.need + ' 只'
-  if (a.kind === 'elite') return a.done ? '目标已伏诛' : '目标：' + a.target
+  if (a.kind === 'elite') return a.done ? '目标已伏诛' : '目标：' + a.target + (a.airTarget ? ' / ' + a.airTarget : '')
   if (a.kind === 'trial') return a.done ? '御风试炼已完成' : '目标：完成一次御风试炼'
   return ''
 }
@@ -65333,6 +65335,31 @@ function onBountyKill(e) {
   } else {
     return
   }
+  if (a.progress >= a.need && !a.done) {
+    a.done = true
+    updateBountyTracker()
+    setTimeout(() => showBanner('📜 悬赏目标达成 · 回榜领取赏金', 2200), 900)
+  } else {
+    updateBountyTracker()
+  }
+  saveGame()
+}
+
+function onAirBountyKill(e) {
+  if (!e || !GS.ready) return
+  const b = ensureBountyState()
+  const a = b.active
+  if (!a || a.done) return
+  let changed = false
+  if (a.kind === 'clear' && a.areaId === 'wutan') {
+    a.progress = Math.min(a.need, (Number(a.progress) || 0) + 1)
+    changed = true
+  } else if (a.kind === 'elite' && (a.airTarget === '云海龙将' || a.areaId === 'wutan')) {
+    if (!e.airElite && e.name !== '云海龙将') return
+    a.progress = 1
+    changed = true
+  }
+  if (!changed) return
   if (a.progress >= a.need && !a.done) {
     a.done = true
     updateBountyTracker()
@@ -65685,9 +65712,14 @@ function toggleWings(){
   if(!wings)return
   wingsOn=!wingsOn
   wings.visible=wingsOn
-  if(!wingsOn){velocityY=Math.min(velocityY,0);flyCeilMsg=false;keys.space=false}
+  if(!wingsOn){
+    velocityY=Math.min(velocityY,0);flyCeilMsg=false;keys.space=false;
+    wingFoldGlide=(airCombat.active&&playerModel&&playerModel.position.y>groundY+.3)?2.4:0;
+  }else{
+    wingFoldGlide=0;
+  }
   updateWingDbg();try{saveGame()}catch(e){}
-  showBanner(wingsOn?'❄ 冰晶翼展开 · 空格上升 / Z下降':'❄ 冰晶翼收拢')
+  showBanner(wingsOn?'❄ 冰晶翼展开 · 空格上升 / Z下降':(airCombat.active?'❄ 冰晶翼收拢 · 短暂滑翔缓降':'❄ 冰晶翼收拢'))
 }
 function updateWings(dt){
   if(!wings)return
@@ -65787,7 +65819,12 @@ function animate(t,forcedDelta){
     if(wingsOn){
       const targetVy=keys.space?7.2:keys.z?-5.2:(airCombat.active?0.12:-1.4);
       velocityY+=(targetVy-velocityY)*Math.min(1,md*4.5);
+    }else if(airCombat.active&&wingFoldGlide>0&&playerModel.position.y>groundY+.2){
+      wingFoldGlide=Math.max(0,wingFoldGlide-md);
+      const targetVy=keys.z?-2.4:-1.15;
+      velocityY+=(targetVy-velocityY)*Math.min(1,md*3.2);
     }else{
+      wingFoldGlide=0;
       velocityY+=gravity*md;
     }
     playerModel.position.y+=velocityY*md;
@@ -65807,7 +65844,7 @@ function animate(t,forcedDelta){
     if(airArenaGroup&&velocityY<=0&&previousY>=SKY_TOP-.08&&Math.hypot(playerModel.position.x-SKY_X,playerModel.position.z-SKY_Z)<SKY_R-.18){
       groundY=Math.max(groundY,SKY_TOP);
     }
-    if(playerModel.position.y<=groundY){playerModel.position.y=groundY;velocityY=0;jumpsLeft=maxJumps}
+    if(playerModel.position.y<=groundY){playerModel.position.y=groundY;velocityY=0;jumpsLeft=maxJumps;wingFoldGlide=0}
     if(!GS.dead)updateCombat(delta);
     if(mixer){
       if(attackAnimT>0){/* 攻击演出中 */}
@@ -66783,7 +66820,7 @@ function openAirArenaDialog(){
       <div class="air-record"><span>最快破阵 <b>${airBestText(a.best)}</b></span><span>已破阵 <b>${a.clears}</b> 次</span></div>
       <div class="air-rules">
         云台悬于乌坦城上空。按 <b>Tab</b> 锁定妖龙，左键会先<b>追身突进</b>再出招；右键瞬步躲风刃。<br>
-        空格上升、<b>Z</b> 下降；空中按 <b>H</b> 可收翼，但收翼会下落。共 <b>三波</b>，每清一波回复 <b>25%</b> 气血与斗气。<b>坠落云台</b>或<b>离场</b>即中止；按 <b>Q</b> 可主动收势。<br>
+        空格上升、<b>Z</b> 下降；空中按 <b>H</b> 可收翼，短暂滑翔缓降，再按 <b>H</b> 展开。共 <b>三波</b>，每清一波回复 <b>25%</b> 气血与斗气。<b>坠落云台</b>或<b>离场</b>即中止；按 <b>Q</b> 可主动收势。<br>
         首通奖励 <b>${rewardGold} 金</b>与大量经验，并永久提升<b>空中攻击 8%</b>；之后每次破阵仍有金币。
       </div>
       <div class="air-actions"><button class="air-start" data-air-start>开始斗空</button><button class="air-ghost" onclick="document.getElementById('modals').innerHTML=''">暂不前往</button></div>
@@ -66843,6 +66880,7 @@ function spawnAirWave(w){
 function onAirKill(e){
   if(!airCombat.active||!e||!e.air)return;
   airCombat.killed++;
+  onAirBountyKill(e);
   airCombat.hudT=0;
   updateAirHud(true);
 }
