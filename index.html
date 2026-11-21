@@ -550,6 +550,17 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
 .bt-bar>i{display:block;height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#8f6a2e,#ffd76a);box-shadow:0 0 8px rgba(255,205,70,.45)}
 .bt-obj{font-size:10px;color:#a39478;display:flex;justify-content:space-between;gap:8px}
 .bt-obj b{color:#f0d488;font-weight:600}
+#quest-track{position:absolute;top:calc(252px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left));width:min(236px,32vw);padding:9px 12px 10px;border:1px solid rgba(201,160,80,.4);border-radius:10px;background:linear-gradient(165deg,rgba(28,22,18,.94),rgba(14,12,20,.92));box-shadow:0 8px 26px rgba(0,0,0,.42);display:none;pointer-events:none;color:#d9c9a5;letter-spacing:.4px}
+#quest-track.on{display:block}
+#quest-track.ready{border-color:rgba(255,214,100,.82)}
+#quest-track .qt-top{display:flex;align-items:center;gap:6px;font-family:var(--kai);font-size:12px;color:#f0d488;letter-spacing:1px}
+#quest-track .qt-state{margin-left:auto;font-size:9.5px;color:#9f8b62;letter-spacing:1px}
+#quest-track.ready .qt-state{color:#ffe07a}
+#quest-track .qt-title{margin-top:5px;font-size:12px;font-weight:700;color:#f5e9cf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#quest-track .qt-bar{height:4px;margin:6px 0 5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+#quest-track .qt-bar>i{display:block;height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#8f6a2e,#ffd76a)}
+#quest-track .qt-obj{font-size:10px;color:#a39478;display:flex;justify-content:space-between;gap:8px}
+#quest-track .qt-obj b{color:#f0d488;font-weight:600}
 .bounty-modal{width:min(520px,94vw)}
 .bounty-heading{display:flex;align-items:center;gap:13px;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--gold-line)}
 .bounty-heading .bh-ico{font-size:34px;filter:drop-shadow(0 0 12px rgba(255,200,80,.5))}
@@ -637,6 +648,12 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
     <div class="bt-title" id="bt-title">—</div>
     <div class="bt-bar"><i id="bt-bar"></i></div>
     <div class="bt-obj"><span id="bt-obj">—</span><b id="bt-reward">—</b></div>
+  </div>
+  <div id="quest-track">
+    <div class="qt-top"><span>🗡️</span><span>雁门试刃</span><span class="qt-state" id="qt-state">进行中</span></div>
+    <div class="qt-title" id="qt-title">—</div>
+    <div class="qt-bar"><i id="qt-bar"></i></div>
+    <div class="qt-obj"><span id="qt-obj">—</span><b id="qt-reward">—</b></div>
   </div>
   <div id="controls-hint"><span class="kbd">WASD</span>移动 <span class="kbd">E</span>疾奔 <span class="kbd">F</span>交互 <span class="kbd">B</span>背包 <span class="kbd">P</span>灵兽 <span class="kbd">M</span>地图 <span class="kbd">H</span>冰翼 <span class="kbd">空格</span>跳跃/上升 <span class="kbd">Z</span>下降</div>
 </div>
@@ -60159,9 +60176,9 @@ const PEAKS=[
 //  2. 游戏状态 + 本地存档
 // ============================================================
 const SAVE_KEY='dpcq_save_v4';
-function defaultState(){return {p:{name:'萧炎',lvl:1,ri:0,si:0,xp:0,hp:100,mhp:100,atk:10,def:5,spd:3,qi:100,mqi:100,gold:0,kills:0,skills:['bajibeng'],inv:[],pets:[],activePet:null,windBest:0,windRank:'',windClears:0,windS:false,bounty:null,air:{clears:0,best:0,first:false}},unlocked:['wutan'],lastArea:'wutan'}}
+function defaultState(){return {p:{name:'萧炎',lvl:1,ri:0,si:0,xp:0,hp:100,mhp:100,atk:10,def:5,spd:3,qi:100,mqi:100,gold:0,kills:0,skills:['bajibeng'],inv:[],pets:[],activePet:null,windBest:0,windRank:'',windClears:0,windS:false,bounty:null,air:{clears:0,best:0,first:false},yanmenQuest:{stage:0,found:false,crateX:31.5,crateZ:57.4}},unlocked:['wutan'],lastArea:'wutan'}}
 let GS=defaultState();let SAVED=null;
-try{const raw=localStorage.getItem(SAVE_KEY);if(raw){const s=JSON.parse(raw);if(s&&s.p){SAVED=s;GS={...defaultState(),...s};GS.p={...defaultState().p,...s.p};if(!Array.isArray(GS.p.inv))GS.p.inv=[];if(!Array.isArray(GS.p.belt))GS.p.belt=[null,null,null];if(!Array.isArray(GS.p.pets))GS.p.pets=[];if(GS.p.activePet===undefined)GS.p.activePet=null}}}catch(e){}
+try{const raw=localStorage.getItem(SAVE_KEY);if(raw){const s=JSON.parse(raw);if(s&&s.p){SAVED=s;GS={...defaultState(),...s};GS.p={...defaultState().p,...s.p};if(!Array.isArray(GS.p.inv))GS.p.inv=[];if(!Array.isArray(GS.p.belt))GS.p.belt=[null,null,null];if(!Array.isArray(GS.p.pets))GS.p.pets=[];if(GS.p.activePet===undefined)GS.p.activePet=null;if(!GS.p.yanmenQuest)GS.p.yanmenQuest={stage:0,found:false,crateX:31.5,crateZ:57.4}}}}catch(e){}
 GS.cds={};GS.dirty=true;GS.ready=false;GS.curArea='wutan';GS.lockedId=null;GS.dead=false;GS._announced={};
 GS.shops=GS.shops||{};
 GS.paused=false;
@@ -63425,10 +63442,96 @@ function spawnNPC(cat,asset){
   addInteract({id:'npc-'+cat.key,x:npc.x,z:npc.z,r:3.4,label:()=>'与 '+cat.name+' 交谈',run:()=>openNpcDialog(npc)});
   return npc;
 }
+function yanmenQuest(){if(!GS.p.yanmenQuest)GS.p.yanmenQuest={stage:0,found:false,crateX:31.5,crateZ:57.4};return GS.p.yanmenQuest}
+const YANMEN_REWARD={gold:180,xp:600};
+let questCrate=null;
+function ensureQuestCrate(){
+  if(questCrate)return questCrate;
+  const g=new THREE.Group();
+  const wood=new THREE.MeshStandardMaterial({color:0x6d4726,roughness:.86,metalness:.05});
+  const band=new THREE.MeshStandardMaterial({color:0x3a2a1b,roughness:.7,metalness:.25});
+  const box=new THREE.Mesh(new THREE.BoxGeometry(.82,.56,.58),wood);box.position.y=.3;box.castShadow=true;box.receiveShadow=true;g.add(box);
+  for(const yy of [.12,.48]){const b=new THREE.Mesh(new THREE.BoxGeometry(.86,.055,.62),band);b.position.y=yy;g.add(b)}
+  const lock=new THREE.Mesh(new THREE.BoxGeometry(.12,.12,.05),new THREE.MeshStandardMaterial({color:0xd9ad5c,metalness:.7,roughness:.3}));lock.position.set(0,.34,.305);g.add(lock);
+  const tag=makeNameTag('被劫货箱',.5);tag.position.set(0,1.18,0);g.add(tag);
+  g.position.set(31.5,groundHeight(31.5,57.4),57.4);g.visible=false;scene.add(g);questCrate=g;return g;
+}
+function updateYanmenQuestTracker(){
+  const q=yanmenQuest(),el=$('quest-track');if(!el)return;
+  if(q.stage<=0||q.stage>=4){el.classList.remove('on','ready');ensureQuestCrate().visible=false;return}
+  if(q.stage===2){
+    const crate=ensureQuestCrate();
+    const cx=q.crateX||31.5,cz=q.crateZ||57.4;
+    crate.position.set(cx,groundHeight(cx,cz),cz);
+    questCratePoint.x=cx;questCratePoint.z=cz;
+    crate.visible=true;
+  }else ensureQuestCrate().visible=false;
+  let title='',obj='',reward='',pct=0;
+  if(q.stage===1){title='清剿劫道山贼';obj='击败城外山贼';reward='180 金 · 600 经验';pct=0}
+  else if(q.stage===2){title='取回被劫货箱';obj='山贼营地 · 拾取货箱';reward='180 金 · 600 经验';pct=55}
+  else{title='回城向沈砚复命';obj='与雁门剑客·沈砚交谈';reward='180 金 · 600 经验';pct=100}
+  const key=q.stage+'|'+title;
+  if(el.dataset.k!==key){
+    el.dataset.k=key;
+    $('qt-title').textContent=title;$('qt-obj').textContent=obj;$('qt-reward').textContent=reward;
+    $('qt-state').textContent=q.stage===3?'可交付':'进行中';
+    $('qt-bar').style.width=pct+'%';
+  }
+  el.classList.add('on');el.classList.toggle('ready',q.stage===3);
+}
+function acceptYanmenQuest(){
+  const q=yanmenQuest();if(q.stage!==0)return;
+  q.stage=1;q.found=false;saveGame();updateYanmenQuestTracker();
+  showBanner('🗡️ 接下「雁门试刃」：出城击败劫道山贼，取回被劫货箱',3200);
+}
+function pickYanmenQuestCrate(){
+  const q=yanmenQuest();if(q.stage!==2)return;
+  q.stage=3;q.found=true;saveGame();updateYanmenQuestTracker();
+  showBanner('📦 已取回被劫货箱，回城交给沈砚',3000);
+}
+function claimYanmenQuest(){
+  const q=yanmenQuest();if(q.stage!==3)return;
+  q.stage=4;GS.p.gold+=YANMEN_REWARD.gold;gainXp(YANMEN_REWARD.xp);
+  GS.p.inv.push('雁门谢礼');saveGame();updateAll();updateHUD();updateYanmenQuestTracker();
+  showBanner('🏅「雁门试刃」完成：+'+YANMEN_REWARD.gold+' 金 · +'+YANMEN_REWARD.xp+' 经验 · 雁门谢礼',3400);
+}
+function onYanmenQuestKill(e){
+  const q=yanmenQuest();
+  if(q.stage===1&&e&&e.name==='山贼'){
+    q.stage=2;
+    const crate=ensureQuestCrate();
+    const cx=e.root.position.x+1.7,cz=e.root.position.z+1.1;
+    q.crateX=cx;q.crateZ=cz;
+    crate.position.set(cx,groundHeight(cx,cz),cz);
+    resolveWorld(crate.position,.6,1.2);
+    q.crateX=crate.position.x;q.crateZ=crate.position.z;
+    crate.visible=true;
+    questCratePoint.x=crate.position.x;questCratePoint.z=crate.position.z;
+    saveGame();updateYanmenQuestTracker();
+    showBanner('🗡️ 山贼已伏，货箱就在他倒下的营地旁',3000);
+  }
+}
+function yanmenQuestButton(){
+  const q=yanmenQuest();
+  if(q.stage===0)return '<button class="npc-act" data-quest-accept>🗡️ 接下「雁门试刃」<small>清剿城外山贼，取回被劫货箱</small></button>';
+  if(q.stage===1)return '<button class="npc-act" disabled>🗡️ 已接下 · 山贼在城南营地<small>击败山贼后取回货箱</small></button>';
+  if(q.stage===2)return '<button class="npc-act" disabled>📦 货箱还在营地<small>靠近货箱按 F 拾取</small></button>';
+  if(q.stage===3)return '<button class="npc-act" data-quest-claim>🎁 交付货箱，领取谢礼<small>180 金 · 600 经验 · 雁门谢礼</small></button>';
+  return '<button class="npc-act" disabled>🏅 雁门试刃 · 已了结<small>沈砚记下了这份人情</small></button>';
+}
+const questCratePoint=addInteract({id:'q-crate',x:31.5,z:57.4,r:3.1,can:()=>yanmenQuest().stage===2,label:()=>'拾取被劫货箱',run:pickYanmenQuestCrate});
 function openNpcDialog(npc){
   const cat=npc.cat,npcCfg=cat.npc||{title:'城中之人',lines:['……']};
   const lines=(npcCfg.lines&&npcCfg.lines.length)?npcCfg.lines:['……'];
-  const line=lines[npc.lineIdx%lines.length];npc.lineIdx++;
+  let line=lines[npc.lineIdx%lines.length];npc.lineIdx++;
+  if(npc.key==='yanmen_swordsman'){
+    const q=yanmenQuest();
+    if(q.stage===0)line='近来城外山贼劫道，商队货箱也被抢了。你若肯替雁门走一趟，这桩人情我记下。';
+    else if(q.stage===1)line='山贼就在城南营地。斩了他，把被劫的货箱带回来。';
+    else if(q.stage===2)line='货箱还在营地，别让山贼的同伙转移了。';
+    else if(q.stage===3)line='货箱完好？好，雁门说话算话。';
+    else line='雁门试刃已了，往后在城中行走，遇事报我沈砚的名字。';
+  }
   const cd=Math.max(0,Math.ceil((npc.healAt||0)-gameTime));
   const mods=$('modals');
   mods.innerHTML=`
@@ -63440,6 +63543,7 @@ function openNpcDialog(npc){
       <div class="npc-actions">
         <button class="npc-act" data-npc-heal ${cd?'disabled':''}>🧘 请他疗伤<small>${cd?'调息中 · 还需 '+cd+' 秒':'恢复 60% 气血与斗气'}</small></button>
         <button class="npc-act" data-npc-ask>🐾 打听灵兽与御兽之法<small>如何收服生物、让它们成为灵兽</small></button>
+        ${npc.key==='yanmen_swordsman'?yanmenQuestButton():''}
       </div>
       <div class="shop-foot">按 Esc 或点击空白处离开</div>
     </div>
@@ -63459,6 +63563,10 @@ function openNpcDialog(npc){
     const p=mods.querySelector('.npc-line');
     if(p)p.textContent='「将灵兽打至三成血以下，靠近按 F 即可尝试收服。收服后的灵兽会跟在你身后，替你扑咬附近的魔兽。按 P 可以查看灵兽栏、换宠或放生。」';
   };
+  const qa=mods.querySelector('[data-quest-accept]');
+  if(qa)qa.onclick=()=>{acceptYanmenQuest();openNpcDialog(npc)};
+  const qc=mods.querySelector('[data-quest-claim]');
+  if(qc)qc.onclick=()=>{claimYanmenQuest();openNpcDialog(npc)};
 }
 function updateNPCs(dt,time){
   for(const n of npcs){
@@ -63515,9 +63623,32 @@ const petState={root:null,entry:null,body:null,cd:0,lungeT:0,wanderAngle:0,wande
   speed:0,vx:0,vz:0,forwardAngle:0,heading:0,anchorX:0,anchorZ:0,anchorReady:false,lastPx:0,lastPz:0,playerVX:0,playerVZ:0,
   followSide:1,idlePause:1.2,loiterT:0,loitering:false,animName:'Idle',wasMoving:false,recover:false,
   trail:[],trailT:0,aheadWait:false};
+function petSafeAnchor(px,pz,radius,h,baseAngle){
+  // 在玩家周围找一块没有桌案/屋檐占位的落点，优先保留当前方位。
+  const offsets=[0,.45,-.45,.9,-.9,1.4,-1.4,Math.PI];
+  let last=null;
+  for(const rr of [radius,radius+.7,radius+1.4]){
+    for(const da of offsets){
+      const a=baseAngle+da;
+      const tx=px+Math.sin(a)*rr,tz=pz+Math.cos(a)*rr;
+      const probe=new THREE.Vector3(tx,0,tz);
+      resolveWorld(probe,.55,h);
+      last={x:tx,z:tz};
+      if(Math.hypot(probe.x-tx,probe.z-tz)<.12)return last;
+    }
+  }
+  return last||{x:px+Math.sin(baseAngle)*radius,z:pz+Math.cos(baseAngle)*radius};
+}
 function choosePetWander(){
   petState.wanderAngle=Math.random()*Math.PI*2;
   petState.wanderRadius=2.0+Math.random()*1.1;
+  if(playerModel){
+    const px=playerModel.position.x,pz=playerModel.position.z;
+    const h=(MODEL_ASSETS[petState.entry&&petState.entry.key]&&MODEL_ASSETS[petState.entry.key].petHeight)||1.1;
+    const pt=petSafeAnchor(px,pz,petState.wanderRadius,h,petState.wanderAngle);
+    petState.wanderAngle=Math.atan2(pt.x-px,pt.z-pz);
+    petState.wanderRadius=Math.hypot(pt.x-px,pt.z-pz);
+  }
   petState.loiterT=1.5+Math.random()*2.0;
   petState.stuckT=0;
 }
@@ -63573,6 +63704,8 @@ function spawnActivePet(){
     root.rotation.y=0;petState.lastPx=px;petState.lastPz=pz;
   }
   petState.root=root;petState.entry=entry;petState.body=root.userData.body;
+  petState.head=null;petState.idleHeadQ=null;
+  root.traverse(o=>{if(!petState.head&&o.isBone&&/head|skull/i.test(o.name))petState.head=o});
   petState.cd=.5;petState.lungeT=0;petState.speed=0;petState.vx=0;petState.vz=0;
   petState.playerVX=0;petState.playerVZ=0;petState.anchorX=px;petState.anchorZ=pz;petState.anchorReady=true;
   petState.idlePause=1.2+Math.random()*1.4;petState.loitering=false;petState.animName='Idle';petState.wasMoving=false;petState.recover=false;
@@ -63657,9 +63790,10 @@ function updatePet(dt,time){
       petState.wasMoving=false;
       // 停步后如果已经贴到玩家腿边，先沿当前径向退开，别站在原地等玩家迈步踩进来。
       if(distP>0.01&&distP<1.65){
-        const out=2.15;
-        petState.anchorX=px+(root.position.x-px)/distP*out;
-        petState.anchorZ=pz+(root.position.z-pz)/distP*out;
+        const a=Math.atan2(root.position.x-px,root.position.z-pz);
+        const pt=petSafeAnchor(px,pz,2.15,targetH,a);
+        petState.anchorX=pt.x;
+        petState.anchorZ=pt.z;
         petState.anchorReady=true;
         petState.recover=true;
         petState.idlePause=0;
@@ -63673,6 +63807,16 @@ function updatePet(dt,time){
       tx=petState.anchorX;tz=petState.anchorZ;
       const rd=Math.hypot(tx-root.position.x,tz-root.position.z);
       if(rd<.2){petState.recover=false;petState.idlePause=1.2+Math.random()*1.4;petState.loitering=false}
+    }else if(!petState.targetName&&distP>0.01&&distP<1.75){
+      // 扑咬结束回到待机时也可能贴在玩家腿边，这里再退一次。
+      const a=Math.atan2(root.position.x-px,root.position.z-pz);
+      const pt=petSafeAnchor(px,pz,2.15,targetH,a);
+      petState.anchorX=pt.x;
+      petState.anchorZ=pt.z;
+      petState.anchorReady=true;
+      petState.recover=true;
+      petState.idlePause=0;
+      tx=petState.anchorX;tz=petState.anchorZ;
     }else if(petState.idlePause>0){
       petState.idlePause-=dt;tx=root.position.x;tz=root.position.z;
     }else{
@@ -63768,6 +63912,17 @@ function updatePet(dt,time){
   if(petData.rigged){
     playRootAnim(root,anim,false);
     if(petData.mixer)petData.mixer.update(dt);
+    if(petState.head&&anim==='Idle'&&!petState.targetName){
+      // 待机时头轻轻转向玩家，像在等你下一步；幅度很小，不抢动作。
+      if(!petState.idleHeadQ)petState.idleHeadQ=petState.head.quaternion.clone();
+      const toP=Math.atan2(px-root.position.x,pz-root.position.z);
+      const rel=Math.atan2(Math.sin(toP-root.rotation.y),Math.cos(toP-root.rotation.y));
+      petState.head.quaternion.copy(petState.idleHeadQ);
+      petState.head.rotateY(Math.max(-.45,Math.min(.45,rel))*.35);
+      petState.head.rotateX(Math.sin(time*1.6)*.03);
+    }else if(anim!=='Idle'){
+      petState.idleHeadQ=null;
+    }
     // 动作播放速度跟着实际位移速度走，脚才不会在地上滑。
     const act=petData.actions&&petData.actions[anim];
     if(act&&anim!=='Attack'){
@@ -64844,6 +64999,7 @@ function killEnemy(e){
   }
   if(!e.air)showBanner('🏆 击败 '+e.name+'！ +'+e.xp+' 经验 · +'+e.gold+' 金',2600);
   if(e.air)onAirKill(e);else onBountyKill(e);
+  onYanmenQuestKill(e);
   sfxKill();
   updateAll();saveGame();
 }
@@ -66900,6 +67056,7 @@ function updateHUD(){
   $('qi-fill').style.width=(p.qi/p.mqi*100)+'%';
   $('qi-txt').textContent=Math.max(0,Math.round(p.qi))+'/'+p.mqi;
   $('hp-track').classList.toggle('danger',p.hp/p.mhp<.25);
+  updateYanmenQuestTracker();
 }
 function itemIcon(it){
   if(it.includes('疗伤')||it.includes('丹'))return'🧪'
@@ -67300,7 +67457,7 @@ window.addEventListener('resize',()=>{
   camera.updateProjectionMatrix();
   resizeRenderer();
 });
-updateHUD();
+updateHUD();updateYanmenQuestTracker();
 updateHotbar();
 window.lucide?.createIcons();
 setTimeout(()=>{$('controls-hint').classList.add('gone')},16000);
