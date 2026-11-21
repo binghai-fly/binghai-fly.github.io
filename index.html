@@ -63202,12 +63202,70 @@ const MODEL_CATALOG=[
       '把灵兽打至三成血以下，靠近按 F，便能尝试收服。',
       '收服的灵兽会跟在你身后，替你咬碎挡路的家伙。'
     ]}},
+  {key:'yanmen_swordsman',file:'yanmen_swordsman.glb',name:'雁门剑客·沈砚',icon:'🗡️',targetH:1.8,yaw:Math.PI,tagScale:.48,spawn:{x:1.8,z:17.6},
+    npc:{title:'雁门游侠 · 乌坦城',lines:[
+      '我自雁门关来，一路风尘，剑未归鞘。',
+      '乌坦城虽小，却有斗气与灵兽，比边关热闹得多。',
+      '剑客出手，讲究一寸先机；你方才那一剑，火候尚欠三分。',
+      '若他日北行，记得替我给雁门的老卒带一壶酒。'
+    ]}},
+  {key:'yanmen_guard',file:'yanmen_guard.glb',name:'雁门守将·霍铁',icon:'🛡️',targetH:1.82,yaw:Math.PI,tagScale:.48,spawn:{x:5.4,z:15.2},
+    npc:{title:'边关守将 · 卸甲游历',lines:[
+      '这身铁甲跟了我十二年，刀痕比军功还多。',
+      '守城容易，守人心难；你腰间那柄剑，最好只斩该斩之物。',
+      '灵兽也有血性，先压住它的凶性，再谈收服。',
+      '若遇硬仗，别只盯着敌人的刀，先看他的脚跟。'
+    ]}},
+  {key:'yanmen_female',file:'yanmen_female.glb',name:'雁门女侠·苏白衣',icon:'🌸',targetH:1.68,yaw:Math.PI,tagScale:.48,spawn:{x:-3.4,z:19.2},
+    npc:{title:'白衣负剑 · 独行千里',lines:[
+      '白衣不为好看，只为在雪地里好认。',
+      '雁门的雪落下来没有声音，乌坦的风却总带着沙。',
+      '你若真想御兽，先学会听它的呼吸，而不是只看它的牙。',
+      '下次见面，若你剑法有进，我请你喝一碗热汤。'
+    ]}},
+  {key:'yanmen_elder',file:'yanmen_elder.glb',name:'雁门长者·柳伯',icon:'📜',targetH:1.7,yaw:Math.PI,tagScale:.48,spawn:{x:-7.2,z:17.2},
+    npc:{title:'边城老吏 · 阅尽风霜',lines:[
+      '老夫在雁门关了半辈子，见过太多的年轻人去而不返。',
+      '斗气是火，心是炉；炉要是裂了，火再旺也留不住。',
+      '灵兽认主，不认强弱，认的是你肯不肯护它到底。',
+      '去吧，年轻人。乌坦城的故事，才刚起头。'
+    ]}},
+  {key:'yanmen_laborer',file:'yanmen_laborer.glb',name:'雁门脚夫·阿石',icon:'🧺',targetH:1.72,yaw:Math.PI,tagScale:.48,spawn:{x:3.2,z:22.6},
+    npc:{title:'边关脚夫 · 走南闯北',lines:[
+      '客官要搬货吗？我这肩膀，雁门的石头都扛过。',
+      '城外的野狗最近凶得很，走夜路可得留神。',
+      '听说有人能把灵兽训得服服帖帖，我要有那本事，早不用挑担了。',
+      '这年头，脚底有茧，比手里有剑还踏实。'
+    ]}},
+  {key:'yanmen_crowd',file:'yanmen_crowd.glb',name:'雁门行商·陆三',icon:'🎒',targetH:1.75,yaw:Math.PI,tagScale:.48,spawn:{x:-4.6,z:23.2},
+    npc:{title:'行脚商人 · 消息灵通',lines:[
+      '客官看看货？雁门的皮货、乌坦的斗石，我这儿都有门路。',
+      '云海斗场那边又起风了，胆大的都去挣那份赏钱。',
+      '灵兽不是货物，强买强卖，最后多半要反噬。',
+      '要是你肯替我跑一趟腿，价钱好说。'
+    ]}},
   {key:'dragon',file:'赤翼幼龙_rigged.glb',name:'赤翼幼龙',icon:'🐲',targetH:1.15,yaw:-Math.PI/2,spawn:{x:7.5,z:19.5},
     creature:{hp:110,atk:12,def:3,xp:90,gold:50,radius:.8,petHeight:.9,petAtk:8}},
   {key:'qilin',file:'青玉麒麟_rigged.glb',name:'青玉麒麟',icon:'🦄',targetH:2.05,yaw:-Math.PI/2,spawn:{x:-7,z:36},
     creature:{hp:260,atk:20,def:9,xp:220,gold:140,radius:1.35,petHeight:1.4,petAtk:16}}
 ];
 const npcs=[];
+// 人形敌人按模板名换用雁门角色 GLB；兽/蛇分支不受影响。
+const HUMANOID_SKIN_BY_NAME={
+  '山贼':'yanmen_crowd','学院新生':'yanmen_crowd','内院精英':'yanmen_swordsman',
+  '执法统领':'yanmen_guard','黑榜杀手':'yanmen_crowd','血宗弟子':'yanmen_female',
+  '黑角域统领':'yanmen_guard','中州散修':'yanmen_crowd','宗门执事':'yanmen_elder',
+  '一殿之主':'yanmen_guard','丹塔守卫':'yanmen_guard','七品炼药师':'yanmen_elder',
+  '丹塔长老':'yanmen_elder','魂殿护法':'yanmen_crowd','魂殿尊者':'yanmen_elder',
+  '魂殿殿主':'yanmen_guard','古族卫士':'yanmen_guard','古族统领':'yanmen_swordsman',
+  '古族长老':'yanmen_elder','半帝残影':'yanmen_swordsman','帝境守护者':'yanmen_guard',
+  '帝魂分身':'yanmen_swordsman','天劫之灵':'yanmen_female','远古魂灵':'yanmen_elder'
+};
+function humanoidSkinKey(tpl){
+  if(!tpl)return null;
+  const key=tpl.skinKey||HUMANOID_SKIN_BY_NAME[tpl.n];
+  return key&&MODEL_ASSETS[key]?key:null;
+}
 const wildSpawned={};
 let modelPackStarted=false;
 function classifyModel(root){
@@ -63250,6 +63308,12 @@ function setupRiggedVisual(root,gltf,visual){
     act.enabled=true;
     actions[clip.name]=act;
   }
+  // 雁门 crowd 的原始 Idle 第 0 帧是 T-pose；用 Walk 第 0.55 秒的姿态烘成静态 Idle。
+  if(root.userData.skinKey==='yanmen_crowd'&&actions.Walk){
+    const poseClip=staticPoseClip(actions.Walk.getClip(),.55,'Idle');
+    actions.Idle=mixer.clipAction(poseClip);
+    actions.Idle.enabled=true;
+  }
   root.userData.rigged=true;
   root.userData.mixer=mixer;
   root.userData.actions=actions;
@@ -63257,12 +63321,28 @@ function setupRiggedVisual(root,gltf,visual){
   root.userData.currentAction=null;
   playRootAnim(root,'Idle',true);
 }
+function staticPoseClip(source,time,name){
+  const tracks=[];
+  for(const tr of source.tracks){
+    const v=tr.createInterpolant().evaluate(time);
+    const Ctor=tr.constructor;
+    const values=new Float32Array(v.length*2);
+    values.set(v,0);values.set(v,v.length);
+    tracks.push(new Ctor(tr.name,new Float32Array([0,1]),values));
+  }
+  return new THREE.AnimationClip(name,1,tracks);
+}
 function playRootAnim(root,name,force){
   const data=root&&root.userData;
   if(!data||!data.rigged||!data.actions)return;
   const actions=data.actions;
   let nm=name;
-  if(!actions[nm])nm=(nm==='Fly'||nm==='Run')?'Walk':'Idle';
+  if(!actions[nm]){
+    // 雁门人形只有 Idle/Walk：缺 Attack/Hit 时保留当前循环动作，
+    // 不要反复 reset 到动作第 0 帧（部分 GLB 的第 0 帧是 T-pose）。
+    if(name==='Attack'||name==='Hit')return;
+    nm=(nm==='Fly'||nm==='Run')?'Walk':'Idle';
+  }
   if(!actions[nm])nm=actions.Idle? 'Idle':Object.keys(actions)[0];
   const act=actions[nm];
   if(!act)return;
@@ -63290,9 +63370,12 @@ function buildModelRoot(asset,targetH,yaw,kind){
   box.setFromObject(visual,true);
   visual.position.add(new THREE.Vector3(-(box.min.x+box.max.x)/2,-box.min.y,-(box.min.z+box.max.z)/2));
   body.add(visual);
-  root.userData={kind,body,limbs:[],visual};
+  root.userData={kind,body,limbs:[],visual,targetH,skinKey:asset.key};
   setupRiggedVisual(root,asset.gltf,visual);
-  root.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true}});
+  root.traverse(o=>{
+    if(o.isMesh){o.castShadow=true;o.receiveShadow=true}
+    if(o.isSkinnedMesh){o.frustumCulled=false;if(o.skeleton){o.skeleton.update();if(o.skeleton.boneTexture)o.skeleton.boneTexture.needsUpdate=true}}
+  });
   return root;
 }
 function loadModelPack(){
@@ -63306,7 +63389,7 @@ function loadModelPack(){
         petHeight:(cat.creature&&cat.creature.petHeight)||1.1,petAtk:(cat.creature&&cat.creature.petAtk)||8,
         yaw:cat.yaw||0,kind:cls.kind,catalog:cat};
       console.log('[模型自动分类] '+cat.file+' → '+(cls.kind==='npc'?'NPC':'生物')+'（直立度 '+cls.upright.toFixed(2)+'）');
-      if(GS.ready){spawnCatalogEntry(cat);spawnActivePet();}
+      if(GS.ready){spawnCatalogEntry(cat);spawnActivePet();reskinHumanoidEnemies(cat.key);}
     },undefined,err=>console.warn('[模型] '+cat.file+' 加载失败',err));
   }
 }
@@ -63318,11 +63401,11 @@ function spawnCatalogEntry(cat){
   if(asset.kind==='npc')spawnNPC(cat,asset);
   else spawnWild(cat,asset);
 }
-function makeNameTag(text){
+function makeNameTag(text,scale=1){
   const tex=labelTexture(text,'rgba(10,8,16,0.78)','#f0d488',512,96,'bold 52px serif');
   const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
   const sp=new THREE.Sprite(mat);
-  sp.scale.set(2.4,.45,1);
+  sp.scale.set(2.4*scale,.45*scale,1);
   return sp;
 }
 function spawnNPC(cat,asset){
@@ -63331,7 +63414,7 @@ function spawnNPC(cat,asset){
   root.position.set(cat.spawn.x,groundHeight(cat.spawn.x,cat.spawn.z),cat.spawn.z);
   resolveWorld(root.position,.55,cat.targetH||1.8);
   scene.add(root);
-  const tag=makeNameTag(cat.name);
+  const tag=makeNameTag(cat.name,cat.tagScale||1);
   tag.position.set(0,(cat.targetH||1.8)+.5,0);
   root.add(tag);
   const npc={key:cat.key,cat,name:cat.name,root,x:root.position.x,z:root.position.z,y:root.position.y,
@@ -63385,7 +63468,20 @@ function updateNPCs(dt,time){
       if(Math.hypot(dx,dz)<8)n.root.rotation.y=Math.atan2(dx,dz);
       else n.root.rotation.y=n.baseRot;
     }
-    n.body.position.y=Math.sin(time*1.7+n.seed)*.01;
+    const data=n.root.userData;
+    if(data&&data.rigged){
+      playRootAnim(n.root,'Idle');
+      if(data.mixer)data.mixer.update(dt);
+      // crowd 使用烘焙静态 Idle，补一点胸口的呼吸，避免像雕像一样完全定住
+      if(data.skinKey==='yanmen_crowd'){
+        if(!data.idleChest){
+          data.idleChest=null;
+          data.visual?.traverse(o=>{if(!data.idleChest&&o.isBone&&/chest/i.test(o.name))data.idleChest=o});
+        }
+        if(data.idleChest)data.idleChest.rotation.x=Math.sin(time*1.15+n.seed)*.014;
+      }
+      n.body.position.y=0;
+    }else n.body.position.y=Math.sin(time*1.7+n.seed)*.01;
   }
 }
 function templateFromAsset(cat){
@@ -63803,6 +63899,13 @@ let enemySeq=0;
 function makeNPC(tpl){
   if(tpl.modelKey&&MODEL_ASSETS[tpl.modelKey])return buildModelRoot(MODEL_ASSETS[tpl.modelKey],tpl.height||1.8,MODEL_ASSETS[tpl.modelKey].yaw||0,'monster');
   if(tpl.glb&&monsterGltf)return makeMonster1Root();
+  const skinKey=humanoidSkinKey(tpl);
+  if(skinKey){
+    const asset=MODEL_ASSETS[skinKey];
+    const skinned=buildModelRoot(asset,tpl.height||asset.targetH||1.8,asset.yaw||0,'bandit');
+    skinned.userData.skinKey=skinKey;
+    return skinned;
+  }
   const root=new THREE.Group(),body=new THREE.Group();root.add(body);
   const beast=/野狗|赤狐|狮|守护兽/.test(tpl.n),snake=/蛇|蟒/.test(tpl.n);
   const fur=new THREE.MeshStandardMaterial({color:beast?(/狐/.test(tpl.n)?0xb95c33:/狮/.test(tpl.n)?0x79528c:0x5d6664):snake?0x49734e:0x7c333c,roughness:.85});
@@ -63867,8 +63970,9 @@ function makeNPC(tpl){
 function makeEnemy(tpl,area,spawnPos){
   const root=makeNPC(tpl);
   const kind=root.userData.kind;
-  const radius=tpl.radius||(kind==='monster'?1.35:kind==='bandit'?.43:.75);
-  const height=tpl.height||(kind==='monster'?1.85:kind==='serpent'?.55:kind==='beast'?1.5:2);
+  const skinKey=root.userData.skinKey||null;
+  const radius=tpl.radius||(skinKey?.5:kind==='monster'?1.35:kind==='bandit'?.43:.75);
+  const height=tpl.height||(skinKey?(root.userData.targetH||1.8):kind==='monster'?1.85:kind==='serpent'?.55:kind==='beast'?1.5:2);
   const flying=!!tpl.flying;
   const sy=flying&&Number.isFinite(spawnPos.y)?spawnPos.y:groundHeight(spawnPos.x,spawnPos.z);
   root.position.set(spawnPos.x,sy,spawnPos.z);
@@ -63880,7 +63984,7 @@ function makeEnemy(tpl,area,spawnPos){
   const sc=1+area.realm*.10;
   const e={
     id:++enemySeq, root, warning, radius, height,
-    name:tpl.n, icon:tpl.icn, area, tpl,
+    name:tpl.n, icon:tpl.icn, area, tpl, skinKey,
     unique:!!tpl.unique, uniqueKey:tpl.uniqueKey||tpl.petKey||null,
     tameable:!!tpl.tameable, petKey:tpl.petKey||null, petHeight:tpl.petHeight||1.1, petAtk:tpl.petAtk||8,
     maxHp:Math.floor(tpl.hp*sc), hp:Math.floor(tpl.hp*sc),
@@ -63931,6 +64035,27 @@ function ensureAreaEnemies(areaId){
     if(Math.hypot(x-playerModel.position.x,z-playerModel.position.z)<10){x=2*area.pos[0]-x;z=2*area.pos[1]-z}
     if(Math.hypot(x,z)>132){const k=132/Math.hypot(x,z);x*=k;z*=k}
     makeEnemy(tpl,area,{x,z});
+  }
+}
+// 模型异步加载完成后，把已经生成的人形几何敌人就地换成对应 GLB。
+function reskinHumanoidEnemies(key){
+  if(!MODEL_ASSETS[key])return;
+  for(const e of enemies){
+    if(!e||e.dead||e.air||e.tpl.modelKey||e.tpl.glb)continue;
+    if(e.root.userData.skinKey===key)continue;
+    if(humanoidSkinKey(e.tpl)!==key)continue;
+    const old=e.root;
+    const targetH=MODEL_ASSETS[key].targetH||1.8;
+    const root=buildModelRoot(MODEL_ASSETS[key],targetH,MODEL_ASSETS[key].yaw||0,'bandit');
+    root.position.copy(old.position);root.rotation.copy(old.rotation);
+    root.userData.skinKey=key;
+    scene.add(root);
+    e.root=root;e.height=targetH;e.radius=.5;
+    const mats=new Set();root.traverse(o=>{if(o.isMesh){const m=o.material;if(Array.isArray(m))m.forEach(x=>x&&mats.add(x));else if(m)mats.add(m)}});
+    e.materials=[...mats].filter(mat=>mat&&mat.emissive).map(mat=>({mat,color:mat.emissive.getHex(),intensity:mat.emissiveIntensity||0}));
+    enemyAnim(e,'Idle',true);
+    scene.remove(old);
+    old.traverse(o=>{if(o.isMesh){o.geometry?.dispose();const m=o.material;(Array.isArray(m)?m:[m]).forEach(x=>x&&x.dispose&&x.dispose())}});
   }
 }
 // ── 云海斗场：空中妖龙 AI / 风刃 ──
@@ -64453,7 +64578,20 @@ function updateEnemy(e,dt,time,playerPos){
   const data=e.root.userData,phase=time*(e.animName==='Run'?12:7);
   if(data.rigged){
     // 有蒙皮的 GLB 直接播放骨骼动作；不再重复整体起伏，否则会与骨骼位移叠加
+    // 雁门人形角色只有 Idle/Walk，没有 Attack：用整体前冲补足攻击的力度反馈
+    const hasAttack=!!(data.actions&&data.actions.Attack);
+    const lunge=!hasAttack&&e.state==='attack'?Math.sin(Math.min(1,e.stateT/.52)*Math.PI):0;
+    data.body.position.y=0;
+    data.body.position.z=lunge*.24;
+    data.body.rotation.x=lunge*.10;
     if(data.mixer)data.mixer.update(dt);
+    if(data.skinKey==='yanmen_crowd'){
+      if(!data.idleChest){
+        data.idleChest=null;
+        data.visual?.traverse(o=>{if(!data.idleChest&&o.isBone&&/chest/i.test(o.name))data.idleChest=o});
+      }
+      if(data.idleChest)data.idleChest.rotation.x=Math.sin(time*1.15+(e.id||0))* .014;
+    }
   }else if(data.kind==='monster'){
     // 静态 GLB 没有骨骼动画：用整体起伏、侧倾和扑咬前冲做出"活物"感
     const lunge=e.state==='attack'?Math.sin(Math.min(1,e.stateT/.52)*Math.PI):0;
