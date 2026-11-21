@@ -63735,6 +63735,15 @@ function onCharLoaded(gltf){
   (gltf.animations||[]).forEach(cl=>{
     animations[cl.name]=mixer.clipAction(cl);
   });
+  // 原 Idle 在循环接缝处会闪回绑定 T-pose；取第 2 秒的自然站姿烘成静态 Idle，
+  // 再单独给胸口叠一点呼吸，既不会闪 T-pose，也不会像雕像。
+  if(animations.Idle){
+    animations.Idle=mixer.clipAction(staticPoseClip(animations.Idle.getClip(),2.0,'Idle'));
+    animations.Idle.enabled=true;
+  }
+  let idleChest=null;
+  visual.traverse(o=>{if(!idleChest&&o.isBone&&/chest|spine2/i.test(o.name))idleChest=o});
+  playerModel.userData.idleChest=idleChest;
   visual.traverse(c => {
     if (c.isMesh) {
       const mats = Array.isArray(c.material) ? c.material.slice() : [c.material]
@@ -66406,6 +66415,8 @@ function animate(t,forcedDelta){
       else if(isMoving)playAnim(keys.shift?'Run':'Walk');
       else playAnim('Idle');
       mixer.update(md);
+      const idleChest=playerModel&&playerModel.userData&&playerModel.userData.idleChest;
+      if(idleChest&&currentAnim===animations.Idle)idleChest.rotation.x=Math.sin(time*1.15)*.012;
     }
     updateGates(delta);
     updateShops(delta);
