@@ -63517,7 +63517,7 @@ const petState={root:null,entry:null,body:null,cd:0,lungeT:0,wanderAngle:0,wande
   trail:[],trailT:0,aheadWait:false};
 function choosePetWander(){
   petState.wanderAngle=Math.random()*Math.PI*2;
-  petState.wanderRadius=1.5+Math.random()*1.2;
+  petState.wanderRadius=2.0+Math.random()*1.1;
   petState.loiterT=1.5+Math.random()*2.0;
   petState.stuckT=0;
 }
@@ -63655,14 +63655,24 @@ function updatePet(dt,time){
     petState.aheadWait=false;
     if(petState.wasMoving){
       petState.wasMoving=false;
-      petState.recover=distP>3.2;
-      petState.idlePause=petState.recover?0:1.2+Math.random()*1.4;
+      // 停步后如果已经贴到玩家腿边，先沿当前径向退开，别站在原地等玩家迈步踩进来。
+      if(distP>0.01&&distP<1.65){
+        const out=2.15;
+        petState.anchorX=px+(root.position.x-px)/distP*out;
+        petState.anchorZ=pz+(root.position.z-pz)/distP*out;
+        petState.anchorReady=true;
+        petState.recover=true;
+        petState.idlePause=0;
+      }else{
+        petState.recover=distP>3.2;
+        petState.idlePause=petState.recover?0:1.2+Math.random()*1.4;
+      }
     }
     if(petState.recover){
       // 玩家停下时如果灵兽还落在后面，先走回侧后位再开始嗅地。
       tx=petState.anchorX;tz=petState.anchorZ;
       const rd=Math.hypot(tx-root.position.x,tz-root.position.z);
-      if(rd<.55){petState.recover=false;petState.idlePause=1.2+Math.random()*1.4;petState.loitering=false}
+      if(rd<.2){petState.recover=false;petState.idlePause=1.2+Math.random()*1.4;petState.loitering=false}
     }else if(petState.idlePause>0){
       petState.idlePause-=dt;tx=root.position.x;tz=root.position.z;
     }else{
@@ -63869,7 +63879,10 @@ function onCharLoaded(gltf){
   // 再单独给胸口叠一点呼吸，既不会闪 T-pose，也不会像雕像。
   if(animations.Idle){
     animations.Idle=mixer.clipAction(staticPoseClip(animations.Idle.getClip(),2.0,'Idle'));
+    animations.Idle.setLoop(THREE.LoopRepeat, Infinity);
+    animations.Idle.clampWhenFinished=false;
     animations.Idle.enabled=true;
+    currentAnim=animations.Idle;
   }
   let idleChest=null;
   visual.traverse(o=>{if(!idleChest&&o.isBone&&/chest|spine2/i.test(o.name))idleChest=o});
