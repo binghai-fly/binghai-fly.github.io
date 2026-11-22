@@ -63191,6 +63191,7 @@ function DRACOWorker() {
 })();
 /* ===== /DRACOLoader ===== */
 let playerModel=null,mixer=null,animations={},currentAnim=null,weaponModel=null
+let heroUpgradePending=false,heroUpgradeTry=0,heroStatusTimer=null
 let wings=null,wingL=null,wingR=null,wingMatOuter=null,wingMatInner=null,wingAssetReady=false,wingAssetError=false,wingPending=false;
 let wingsOn=false,flyCeilMsg=false,wingLean=0,wingFoldGlide=0;
 const FLY_CEIL=58;
@@ -63478,6 +63479,7 @@ function pumpModelQueue(){
   }
 }
 function ensureCatalogModel(key,urgent){
+  if(heroUpgradePending)return;
   const cat=MODEL_CATALOG.find(c=>c.key===key);
   if(!cat||MODEL_ASSETS[key]||catalogPending(key))return;
   const p=playerModel?playerModel.position:{x:0,z:8};
@@ -63493,7 +63495,7 @@ function playerBusy(){
 function updateLazyModels(dt){
   lazyModelT+=dt||0;
   if(lazyModelT<.8)return;lazyModelT=0;
-  if(!GS.ready||!playerModel||playerBusy())return;
+  if(!GS.ready||!playerModel||heroUpgradePending||playerBusy())return;
   loadModelPack();
   if(playerModel&&!wings&&SAVED&&SAVED.wings)attachIceWings(playerModel);
   const active=getActivePet();
@@ -63510,14 +63512,14 @@ function updateLazyModels(dt){
   }
 }
 function loadModelPack(){
-  if(modelPackStarted)return;modelPackStarted=true;
+  if(heroUpgradePending||modelPackStarted)return;modelPackStarted=true;
   const p=playerModel?playerModel.position:{x:0,z:8};
   const near=MODEL_CATALOG.filter(cat=>Math.hypot(cat.spawn.x-p.x,cat.spawn.z-p.z)<=20);
   near.sort((a,b)=>Math.hypot(a.spawn.x-p.x,a.spawn.z-p.z)-Math.hypot(b.spawn.x-p.x,b.spawn.z-p.z));
   for(const cat of near)ensureCatalogModel(cat.key);
 }
 function pumpBackgroundAssets(){
-  if(!GS.ready||!playerModel||playerBusy())return;
+  if(!GS.ready||!playerModel||heroUpgradePending||playerBusy())return;
   loadModelPack();
   if(!wings&&SAVED&&SAVED.wings)attachIceWings(playerModel);
   if(!monsterGltf&&!monster1Loading){
@@ -63907,6 +63909,7 @@ function measurePetForward(root){
   return Math.atan2(v.x,v.z);
 }
 function spawnActivePet(){
+  if(heroUpgradePending){updatePetChip();return null}
   removePetRoot();
   const entry=getActivePet();
   if(!entry){updatePetChip();return null}
@@ -64257,8 +64260,12 @@ function renderPetPanel(){
   });
 }
 // 首屏只让主角独占下载通道；NPC / 灵兽 / 魔兽在 ready 之后按距离和需求排队加载。
-function onCharLoaded(gltf){
-  if(GS.ready)return;
+function onCharLoaded(gltf, upgrade=false){
+  // 升级路径：先把旧剪影的位置/朝向/冰翼摘下来，精模到位后原地替换，不重置玩家进度。
+  const oldModel = upgrade ? playerModel : null;
+  const oldPos = oldModel ? oldModel.position.clone() : null;
+  const oldQuat = oldModel ? oldModel.quaternion.clone() : null;
+  const oldWings = upgrade ? wings : null;
   const visual=gltf.scene;
   // 导出的佩剑节点丢失了原始握持偏移（Y 从 8.15 变成 271.94，飘到头顶上方）。
   // 这里恢复原模型的局部变换，剑仍跟随 mixamorig:RightHand 骨骼。
@@ -64348,23 +64355,166 @@ function onCharLoaded(gltf){
   }
   // 冰翼不是首屏必需资产，等玩家进入游戏后再加载，避免和 NPC 队列抢带宽。
   scene.add(playerModel);
+  if(upgrade && oldModel){
+    if(oldWings && oldWings.parent===oldModel){oldModel.remove(oldWings);playerModel.add(oldWings)}
+    if(oldPos)playerModel.position.copy(oldPos);
+    if(oldQuat)playerModel.quaternion.copy(oldQuat);
+    scene.remove(oldModel);
+    disposePlaceholder(oldModel);
+    playAnim('Idle',true);
+    heroUpgradePending=false;
+    setHeroStatus('真身已至 · 剑影退散',true);
+    modelPackStarted=false;
+    spawnActivePet();
+    loadModelPack();
+    return;
+  }
   finishLoad();
+}
+function setHeroStatus(text,final=false){
+  clearTimeout(heroStatusTimer);
+  let el=document.getElementById('hero-status');
+  if(!el){
+    el=document.createElement('div');el.id='hero-status';
+    el.style.cssText='position:fixed;left:16px;bottom:74px;z-index:6;padding:7px 12px;border:1px solid rgba(186,226,255,.35);border-radius:8px;background:rgba(7,13,22,.78);color:#cfeaff;font:12px/1.5 system-ui,sans-serif;letter-spacing:.5px;pointer-events:none;backdrop-filter:blur(4px)';
+    document.body.appendChild(el);
+  }
+  el.textContent=text;el.hidden=false;
+  if(final)heroStatusTimer=setTimeout(()=>{el.hidden=true},3200);
+}
+function disposePlaceholder(model){
+  if(!model)return;
+  model.traverse(o=>{
+    if(!o.isMesh)return;
+    try{o.geometry?.dispose()}catch(e){}
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    mats.forEach(m=>{if(m&&m.userData&&m.userData.phMat)try{m.dispose()}catch(e){}});
+  });
+}
+function buildPlaceholderVisual(){
+  // 零下载的“剑影”占位：等 5.2MB 精模在后台下完再原地换人。
+  // 全部是低面数基本体，保留 0.5 主角的白蓝衣、黑发和佩剑轮廓。
+  const root=new THREE.Group();root.name='JianYingPlaceholder';
+  const robe=new THREE.MeshStandardMaterial({color:0x9fc3e2,roughness:.72,metalness:.06,flatShading:true});
+  const robeDark=new THREE.MeshStandardMaterial({color:0x334e6b,roughness:.78,metalness:.04,flatShading:true});
+  const trim=new THREE.MeshStandardMaterial({color:0xd8bb78,roughness:.45,metalness:.35,flatShading:true});
+  const skin=new THREE.MeshStandardMaterial({color:0xd8b59a,roughness:.8,flatShading:true});
+  const hair=new THREE.MeshStandardMaterial({color:0x141923,roughness:.9,flatShading:true});
+  const boot=new THREE.MeshStandardMaterial({color:0x232a36,roughness:.8,flatShading:true});
+  const blade=new THREE.MeshStandardMaterial({color:0xc7ecff,emissive:0x2b6f94,emissiveIntensity:.32,metalness:.7,roughness:.22,flatShading:true});
+  [robe,robeDark,trim,skin,hair,boot,blade].forEach(m=>m.userData.phMat=true);
+  const add=(geo,mat,parent,x,y,z)=>{
+    const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);parent.add(m);return m;
+  };
+  const body=new THREE.Group();root.add(body);
+  // 长袍下摆 + 胸甲
+  add(new THREE.CylinderGeometry(.33,.46,.58,8),robe,body,0,.78,0);
+  add(new THREE.CylinderGeometry(.25,.32,.58,6),robe,body,0,1.27,0);
+  add(new THREE.CylinderGeometry(.265,.285,.07,8),robeDark,body,0,1.02,0);
+  add(new THREE.CylinderGeometry(.275,.29,.025,8),trim,body,0,1.04,0);
+  add(new THREE.BoxGeometry(.24,.40,.025),robeDark,body,0,1.27,.19);
+  add(new THREE.BoxGeometry(.30,.46,.035),robeDark,body,0,1.28,-.23);
+  // 颈部与头
+  add(new THREE.CylinderGeometry(.065,.075,.12,6),skin,body,0,1.58,0);
+  const head=add(new THREE.SphereGeometry(.155,12,10),skin,body,0,1.73,.01);
+  head.scale.y=1.06;
+  add(new THREE.SphereGeometry(.17,12,8,0,Math.PI*2,0,Math.PI*.55),hair,body,0,1.78,-.01);
+  add(new THREE.BoxGeometry(.27,.20,.13),hair,body,0,1.77,-.10);
+  add(new THREE.BoxGeometry(.022,.012,.006),hair,head,-.052,.015,.148);
+  add(new THREE.BoxGeometry(.022,.012,.006),hair,head,.052,.015,.148);
+  // 双臂：肩枢轴 → 上臂 → 肘枢轴 → 前臂 → 手
+  const arm=(side)=>{
+    const shoulder=new THREE.Group();shoulder.position.set(side*.32,1.48,0);body.add(shoulder);
+    add(new THREE.CylinderGeometry(.075,.09,.32,5),robe,shoulder,0,-.16,0);
+    const elbow=new THREE.Group();elbow.position.set(0,-.32,0);shoulder.add(elbow);
+    add(new THREE.CylinderGeometry(.055,.07,.30,5),robeDark,elbow,0,-.15,0);
+    add(new THREE.SphereGeometry(.072,8,6),skin,elbow,0,-.32,0);
+    return {shoulder,elbow};
+  };
+  const leftArm=arm(1),rightArm=arm(-1);
+  // 腿：髋枢轴 → 大腿 → 膝枢轴 → 小腿 → 靴
+  const leg=(side)=>{
+    const hip=new THREE.Group();hip.position.set(side*.14,.88,0);body.add(hip);
+    add(new THREE.CylinderGeometry(.085,.10,.36,5),robeDark,hip,0,-.18,0);
+    const knee=new THREE.Group();knee.position.set(0,-.36,0);hip.add(knee);
+    add(new THREE.CylinderGeometry(.065,.08,.34,5),robeDark,knee,0,-.17,0);
+    add(new THREE.BoxGeometry(.16,.10,.24),boot,knee,0,-.36,.045);
+    return {hip,knee};
+  };
+  const leftLeg=leg(1),rightLeg=leg(-1);
+  // 佩剑（挂在右手前臂，随攻击抬落）
+  const sword=new THREE.Group();sword.position.set(0,-.30,.03);sword.rotation.z=.55;rightArm.elbow.add(sword);
+  add(new THREE.BoxGeometry(.036,.82,.012),blade,sword,0,-.46,0);
+  add(new THREE.BoxGeometry(.16,.03,.045),trim,sword,0,-.045,0);
+  add(new THREE.CylinderGeometry(.025,.028,.16,6),trim,sword,0,.06,0);
+  // 脚下淡蓝剑影环，明确这是临时剑影而不是最终模型
+  const aura=new THREE.MeshBasicMaterial({color:0x8fd8ff,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide});
+  aura.userData.phMat=true;
+  const ring=add(new THREE.TorusGeometry(.52,.018,4,24),aura,root,0,.02,0);ring.rotation.x=Math.PI/2;
+  root.userData.placeholderParts={body,head,leftArm,rightArm,leftLeg,rightLeg,sword};
+  return root;
+}
+function mountPlaceholder(){
+  const visual=buildPlaceholderVisual();
+  playerModel=new THREE.Group();playerModel.add(visual);playerModel.rotation.order='YXZ';
+  playerModel.userData.placeholder=true;
+  playerModel.userData.placeholderParts=visual.userData.placeholderParts;
+  playerModel.userData.placeholderPhase=0;
+  mixer=new THREE.AnimationMixer(visual);animations={};
+  scene.add(playerModel);
+  setHeroStatus('剑影已现 · 真身加载中 0%');
+}
+function updatePlaceholderPose(dt,moving,time){
+  const p=playerModel&&playerModel.userData&&playerModel.userData.placeholderParts;
+  if(!p)return;
+  const u=playerModel.userData;
+  u.placeholderPhase+=dt*(moving?9:2.2);
+  const phase=u.placeholderPhase;
+  const walk=moving?1:0;
+  const attack=attackAnimT>0?Math.min(1,attackAnimT/.72):0;
+  const attackK=attack>0?Math.sin((1-attack)*Math.PI):0;
+  const fly=wingsOn?1:0;
+  const k=Math.min(1,dt*12);
+  const target={
+    lLeg: walk*Math.sin(phase)*.52,
+    rLeg:-walk*Math.sin(phase)*.52,
+    lArm:-walk*Math.sin(phase)*.32-.03,
+    rArm: walk*Math.sin(phase)*.22-.03-attackK*1.25,
+    lElbow: -walk*Math.max(0,Math.sin(phase))*.12-.04,
+    rElbow: -walk*Math.max(0,-Math.sin(phase))*.10-.08-attackK*.55,
+    body: moving?Math.abs(Math.sin(phase))*.032:Math.sin(time*1.4)*.014,
+  };
+  if(fly){target.lArm=-.55;target.rArm=-.62;target.lLeg=-.22;target.rLeg=.22}
+  p.leftLeg.hip.rotation.x+=(target.lLeg-p.leftLeg.hip.rotation.x)*k;
+  p.rightLeg.hip.rotation.x+=(target.rLeg-p.rightLeg.hip.rotation.x)*k;
+  p.leftArm.shoulder.rotation.x+=(target.lArm-p.leftArm.shoulder.rotation.x)*k;
+  p.rightArm.shoulder.rotation.x+=(target.rArm-p.rightArm.shoulder.rotation.x)*k;
+  p.leftArm.elbow.rotation.x+=(target.lElbow-p.leftArm.elbow.rotation.x)*k;
+  p.rightArm.elbow.rotation.x+=(target.rElbow-p.rightArm.elbow.rotation.x)*k;
+  p.body.position.y+=(target.body-p.body.position.y)*k;
+  p.head.rotation.y=Math.sin(time*.9)*.035;
+  p.sword.rotation.x=(-.12-attackK*.75)+p.rightArm.shoulder.rotation.x*.25;
 }
 if(/[?&]nochar=1/.test(location.search)){
   setTimeout(()=>{finishLoad();setLoad(100,'场景预览模式（无角色）')},60);
 }else{
-  let tries=0
-  const tryLoad=()=>{
-    const url='./character_modular.glb?v=opt52'+(tries?'&r='+tries:'')
-    gltfLoader.load(url,onCharLoaded,prog=>{
-      setLoad(Math.min(85,(prog.loaded/(prog.total||5232432)*85)),'正在读取角色模型 ('+Math.round(prog.loaded/1048576)+' MB)');
-    },(err)=>{
-      tries++
-      if(tries<3){setLoad(2,'角色模型读取失败，正在重试 ('+tries+'/3)');setTimeout(tryLoad,1200);return}
-      showModelError(String(err&&err.message||err))
-    })
-  }
-  tryLoad()
+  heroUpgradePending=true;
+  mountPlaceholder();
+  // 等当前脚本余下的 const（enemies/npcs 等）初始化完再进游戏；精模在 ready 后后台拉。
+  setTimeout(()=>{if(!GS.ready)finishLoad();loadFullCharacter()},0);
+}
+function loadFullCharacter(){
+  const url='./character_modular.glb?v=opt52'+(heroUpgradeTry?'&r='+heroUpgradeTry:'');
+  gltfLoader.load(url,g=>onCharLoaded(g,true),prog=>{
+    const pct=Math.min(99,Math.round(prog.loaded/(prog.total||5232432)*100));
+    setHeroStatus('剑影已现 · 真身加载中 '+pct+'%');
+  },err=>{
+    heroUpgradeTry++;
+    if(heroUpgradeTry<3){setHeroStatus('真身读取失败，重试 ('+heroUpgradeTry+'/3)');setTimeout(loadFullCharacter,1500);return}
+    heroUpgradePending=false;modelPackStarted=false;
+    setHeroStatus('剑影常驻 · 真身加载失败',true);
+    try{loadModelPack()}catch(e){}
+  });
 }
 function showModelError(msg){
   if(window.__modelErr||playerModel)return;window.__modelErr=1
@@ -64440,7 +64590,7 @@ function finishLoad(){
   // 等玩家站稳（pumpBackgroundAssets / updateLazyModels 检测无移动输入）后再开始拉模型，避免边跑边解析掉帧。
   // 天穹/雾层建了 24 层全屏透明球壳，同半径同色的重复壳有 8 份，叠 8 次全屏混合纯属浪费
   dedupeSkyShells();
-  setTimeout(()=>{$('loading').classList.add('hide');setLoad(100)},450);
+  setTimeout(()=>{$('loading').classList.add('hide');setLoad(100)},120);
   if(fromYanmen){
     setTimeout(()=>showBanner('🏯 已返回乌坦城 · 南门官道',3000),1250);
   }else{
@@ -66982,6 +67132,7 @@ function animate(t,forcedDelta){
       else if(isMoving)playAnim(keys.shift?'Run':'Walk');
       else playAnim('Idle');
       mixer.update(md);
+      if(playerModel&&playerModel.userData&&playerModel.userData.placeholder)updatePlaceholderPose(md,isMoving,time);
       const idleChest=playerModel&&playerModel.userData&&playerModel.userData.idleChest;
       if(idleChest&&currentAnim===animations.Idle)idleChest.rotation.x=Math.sin(time*1.15)*.012;
     }
@@ -68535,6 +68686,7 @@ $('help-btn').addEventListener('click',toggleHelp);
 $('bm-close').addEventListener('click',()=>toggleBigMap(false));
 console.log('🔥 斗破苍穹·即时动作版 已就绪');
 window.__dpcq={shops,interactPoints,indoorShop:()=>indoorShop&&indoorShop.name,gainXp,pick:(nx,ny)=>{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const hits=rc.intersectObjects(scene.children,true);return hits.slice(0,4).map(h=>({type:h.object.type,geo:h.object.geometry&&h.object.geometry.type,color:h.object.material&&h.object.material.color&&h.object.material.color.getHexString(),mat:h.object.material&&h.object.material.type,pos:h.point.toArray().map(v=>+v.toFixed(2)),parent:h.object.parent&&h.object.parent.type}))},enemies:()=>enemies.map(e=>({id:e.id,name:e.name,hp:e.hp,maxHp:e.maxHp,aggro:e.aggro,x:+e.root.position.x.toFixed(1),z:+e.root.position.z.toFixed(1)})),damageEnemy,castSkill:sk=>castSkill(SKILLS.find(s=>s.id===sk)),playerAttack,playerDodge,cycleLock,GS,getPos:()=>playerModel?playerModel.position.toArray():null,teleport:(x,z)=>{if(playerModel){playerModel.position.x=x;playerModel.position.z=z;playerModel.position.y=terrainH(x,z)}},scene,renderer,camera,terrainH,setView:(yaw,pitch)=>{if(typeof yaw==='number')cameraYaw=yaw;if(typeof pitch==='number')cameraPitch=Math.max(-.25,Math.min(.85,pitch))},collidersNear:(x,z,r=3)=>worldColliders.filter(b=>x>=b.min.x-r&&x<=b.max.x+r&&z>=b.min.z-r&&z<=b.max.z+r).map(b=>({min:[+b.min.x.toFixed(2),+b.min.y.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.y.toFixed(2),+b.max.z.toFixed(2)]})),scanGeoms:()=>{const bad=[];scene.traverse(o=>{if(o.geometry&&o.geometry.attributes&&o.geometry.attributes.position){const a=o.geometry.attributes.position,arr=a.array;let nan=0,inf=0,mx=0;for(let i=0;i<arr.length;i++){const v=arr[i];if(Number.isNaN(v))nan++;else if(!Number.isFinite(v))inf++;else{const av=Math.abs(v);if(av>mx)mx=av}}if(nan||inf)bad.push({name:o.name||o.type,verts:a.count,nan,inf,maxAbs:mx})}if(o.geometry&&o.geometry.boundingSphere&&Number.isNaN(o.geometry.boundingSphere.radius))bad.push({name:o.name||o.type,note:'NaN boundingSphere'})});return bad},glErr:()=>{const gl=renderer.getContext();return gl.getError()},pets:()=>GS.p.pets,activePet:()=>getActivePet(),petPos:()=>petState.root?petState.root.position.toArray():null,petInfo:()=>petState.root?({pos:[+petState.root.position.x.toFixed(2),+petState.root.position.z.toFixed(2)],rotY:+petState.root.rotation.y.toFixed(2),angle:+petState.wanderAngle.toFixed(2),radius:+petState.wanderRadius.toFixed(2),moving:petState.moving,speed:+petState.speed.toFixed(2),anim:petState.animName,recover:petState.recover,distP:+Math.hypot(petState.root.position.x-playerModel.position.x,petState.root.position.z-playerModel.position.z).toFixed(2),target:petState.targetName||null,faceYaw:petState.faceYaw===undefined?null:+petState.faceYaw.toFixed(2),blocked:!!petState.steerBlocked,avoid:petState.avoidSide,stalls:stallBoxes.length}):null,petWarp:(x,z)=>{if(!petState.root)return false;petState.root.position.set(x,groundHeight(x,z),z);petState.speed=0;petState.vx=0;petState.vz=0;petState.steerT=0;petState.anchorReady=false;return true},furnitureBoxes:()=>furnitureBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.y.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.y.toFixed(2),+b.max.z.toFixed(2)]})),modelQueue:()=>({active:modelLoadsActive,queue:modelLoadQueue.map(q=>q.cat.key),loading:[...modelLoadingKeys]}),input:()=>({busy:playerBusy(),w:keys.w,a:keys.a,s:keys.s,d:keys.d,shift:keys.shift,dodging,attack:attackAnimT,wind:windTrial.active,air:airCombat.active,paused:GS.paused,lazyT:+lazyModelT.toFixed(2)}),stallBoxes:()=>stallBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.z.toFixed(2)]})),spawnPet:()=>spawnActivePet(),npcs:()=>npcs.map(n=>({name:n.name,x:+n.x.toFixed(1),z:+n.z.toFixed(1)})),nameTags:()=>npcs.map(n=>{const p=new THREE.Vector3();n.tag.getWorldPosition(p);return {name:n.name,visible:n.tag.visible,opacity:+n.tag.material.opacity.toFixed(2),dist:+p.distanceTo(camera.position).toFixed(1)}}),talk:(name)=>{const n=npcs.find(x=>x.name===name);if(n)openNpcDialog(n);return !!n},models:()=>MODEL_CATALOG.map(c=>({key:c.key,kind:c.kind,upright:c.upright&&+c.upright.toFixed(2),loaded:!!MODEL_ASSETS[c.key],file:c.file})),tameInfo:()=>nearTame?({name:nearTame.name,hp:nearTame.hp,maxHp:nearTame.maxHp,chance:tameChance(nearTame)}):null,weaken:(name,pct,calm)=>{const e=enemies.find(x=>x.name===name);if(e){e.hp=Math.max(1,e.maxHp*(pct||.25));if(!calm)e.aggro=true}return e?e.hp:null},tame:()=>{if(nearTame)tryTame(nearTame);return nearTame?nearTame.name:null}};
+window.__dpcq.hero=()=>({placeholder:!!(playerModel&&playerModel.userData&&playerModel.userData.placeholder),upgradePending:heroUpgradePending,try:heroUpgradeTry,status:(document.getElementById('hero-status')||{}).textContent||'',pos:playerModel?playerModel.position.toArray():null});
 window.__dpcq.quest=()=>{const q=yanmenQuest();return {stage:q.stage,crate:questCrate?{x:+questCrate.position.x.toFixed(2),z:+questCrate.position.z.toFixed(2),visible:questCrate.visible}:null,cratePointCan:!!(questCratePoint&&questCratePoint.can&&questCratePoint.can())}};
 window.__dpcq.killBandit=()=>{const e=enemies.find(x=>x.name==='山贼'&&!x.dead);if(!e)return false;e.hp=1;damageEnemy(e,9999,false,false,true);return true};
 window.__dpcq.probeExtra=(sx,sz,dx,dz,steps=40,y=0,radius=.42,height=1.75)=>{
