@@ -64357,7 +64357,7 @@ if(/[?&]nochar=1/.test(location.search)){
   const tryLoad=()=>{
     const url='./character_modular.glb?v=opt52'+(tries?'&r='+tries:'')
     gltfLoader.load(url,onCharLoaded,prog=>{
-      setLoad(Math.min(85,(prog.loaded/(prog.total||6116192)*85)),'正在读取角色模型 ('+Math.round(prog.loaded/1048576)+' MB)');
+      setLoad(Math.min(85,(prog.loaded/(prog.total||5232432)*85)),'正在读取角色模型 ('+Math.round(prog.loaded/1048576)+' MB)');
     },(err)=>{
       tries++
       if(tries<3){setLoad(2,'角色模型读取失败，正在重试 ('+tries+'/3)');setTimeout(tryLoad,1200);return}
@@ -68551,4 +68551,5 @@ setInterval(pumpBackgroundAssets,1200);
 </script>
 </body>
 </html>
+
 
