@@ -60142,7 +60142,7 @@ const SKILLS=[
 ];
 const FX_COLOR={fire:0xff6a20,thunder:0x5ab8ff,burst:0xffd23e,dark:0xb06aff,light:0xfff2c8};
 const AREAS=[
-  {id:'wutan',    n:'乌坦城',   d:'萧家所在的边陲小城',   realm:0,clr:'#c9a050',icn:'🏘️',pos:[0,0],em:[
+  {id:'wutan',    n:'乌坦城',   d:'萧家所在的边陲小城，南门官道通往雁门关',   realm:0,clr:'#c9a050',icn:'🏘️',pos:[0,0],em:[
     {n:'野狗',icn:'🐕',hp:32,atk:5,def:1,xp:15,g:5,s:1.0,tint:[0.10,0.4,0.25]},{n:'山贼',icn:'🥷',hp:55,atk:8,def:2,xp:28,g:10,s:1.05,tint:[0.0,0.25,0.3]},{n:'毒蛇',icn:'🐍',hp:38,atk:10,def:1,xp:22,g:8,s:.9,tint:[0.33,0.5,0.25]}]},
   {id:'moshou',   n:'魔兽山脉', d:'魔兽盘踞的凶险山脉',   realm:1,clr:'#5a8a5a',icn:'🏔️',pos:[50,0],em:[
     {n:'赤狐',icn:'🦊',hp:85,atk:14,def:5,xp:50,g:18,s:.95,tint:[0.08,0.6,0.4]},{n:'岩蟒',icn:'🐍',hp:115,atk:18,def:8,xp:80,g:30,s:1.15,tint:[0.28,0.4,0.3]},{n:'紫晶翼狮王',icn:'🦁',hp:210,atk:26,def:12,xp:150,g:55,s:1.25,tint:[0.78,0.55,0.5]}]},
@@ -60426,12 +60426,36 @@ function resolveWorld(pos, radius, height) {
     }
   }
 }
-function moveBody(root, dx, dz, radius = 0.42, height = 1.75) {
+function resolveExtraBoxes(pos, radius, height, boxes) {
+  if (!boxes || !boxes.length) return
+  for (let pass = 0; pass < 2; pass++) {
+    for (const b of boxes) {
+      if (pos.y + height <= b.min.y || pos.y >= b.max.y) continue
+      const x = Math.max(b.min.x, Math.min(b.max.x, pos.x))
+      const z = Math.max(b.min.z, Math.min(b.max.z, pos.z))
+      const dx = pos.x - x, dz = pos.z - z, d = Math.hypot(dx, dz)
+      if (d >= radius) continue
+      if (d > 0.00001) {
+        pos.x += dx / d * (radius - d)
+        pos.z += dz / d * (radius - d)
+      } else {
+        const sides = [pos.x - b.min.x, b.max.x - pos.x, pos.z - b.min.z, b.max.z - pos.z]
+        const side = sides.indexOf(Math.min(...sides))
+        if (side === 0) pos.x = b.min.x - radius
+        if (side === 1) pos.x = b.max.x + radius
+        if (side === 2) pos.z = b.min.z - radius
+        if (side === 3) pos.z = b.max.z + radius
+      }
+    }
+  }
+}
+function moveBody(root, dx, dz, radius = 0.42, height = 1.75, extraBoxes = null) {
   const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.16))
   for (let i = 0; i < steps; i++) {
     root.position.x += dx / steps
     root.position.z += dz / steps
     resolveWorld(root.position, radius, height)
+    resolveExtraBoxes(root.position, radius, height, extraBoxes)
     for (const e of enemies) {
       if (e.dead || e.root === root || Math.abs(e.root.position.y - root.position.y) > height) continue
       const x = root.position.x - e.root.position.x, z = root.position.z - e.root.position.z
@@ -60450,6 +60474,7 @@ function moveBody(root, dx, dz, radius = 0.42, height = 1.75) {
       }
     }
     resolveWorld(root.position, radius, height)
+    resolveExtraBoxes(root.position, radius, height, extraBoxes)
   }
 }
 // 视线检测：每帧都会被多个敌人调用，复用临时对象避免每帧新建 Ray/Vector3
@@ -61622,6 +61647,8 @@ function buildHouse(x, z, w, d, storeys, ry, warm) {
 }
 
 // ---------- 集市摊位 ----------
+// 摊位只有灵兽需要绕行，玩家仍可正常穿过桌沿；单独收一份兽用障碍盒。
+const petStallBoxes = []
 function marketStall(x, z, ry, cloth) {
   const g = new THREE.Group()
   const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.16, 1.3), CM.wood)
@@ -61645,6 +61672,8 @@ function marketStall(x, z, ry, cloth) {
   g.position.set(x, 0, z)
   g.rotation.y = ry
   cityGroup.add(g)
+  g.updateMatrixWorld(true)
+  petStallBoxes.push(new THREE.Box3().setFromObject(g))
   return g
 }
 
@@ -63423,6 +63452,7 @@ function makeNameTag(text,scale=1){
   const mat=new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false});
   const sp=new THREE.Sprite(mat);
   sp.scale.set(2.4*scale,.45*scale,1);
+  sp.userData.tagW=2.4*scale;sp.userData.tagH=.45*scale;
   return sp;
 }
 function spawnNPC(cat,asset){
@@ -63434,7 +63464,7 @@ function spawnNPC(cat,asset){
   const tag=makeNameTag(cat.name,cat.tagScale||1);
   tag.position.set(0,(cat.targetH||1.8)+.5,0);
   root.add(tag);
-  const npc={key:cat.key,cat,name:cat.name,root,x:root.position.x,z:root.position.z,y:root.position.y,
+  const npc={key:cat.key,cat,name:cat.name,root,tag,x:root.position.x,z:root.position.z,y:root.position.y,
     body:root.userData.body,baseRot:cat.yaw||0,healAt:0,lineIdx:0,seed:Math.random()*10};
   npcs.push(npc);
   const b=new THREE.Box3(new THREE.Vector3(npc.x-.5,npc.y-.1,npc.z-.5),new THREE.Vector3(npc.x+.5,npc.y+(cat.targetH||1.8),npc.z+.5));
@@ -63520,6 +63550,52 @@ function yanmenQuestButton(){
   return '<button class="npc-act" disabled>🏅 雁门试刃 · 已了结<small>沈砚记下了这份人情</small></button>';
 }
 const questCratePoint=addInteract({id:'q-crate',x:31.5,z:57.4,r:3.1,can:()=>yanmenQuest().stage===2,label:()=>'拾取被劫货箱',run:pickYanmenQuestCrate});
+
+// ============ 乌坦城南门 · 官道尽头的关外入口 ============
+// 乌坦城仍是完整城市场景；南门外只放一个“出城”入口，不把整张关外地图硬塞进本页。
+const YANMEN_PORTAL = {x:0,z:69,r:4.8};
+let yanmenPortalVisual = null;
+function goYanmen(){
+  if(!GS.ready)return;
+  clearInput();
+  saveGame();
+  showBanner('🐎 出城 · 沿南门官道前往雁门关外野',2200);
+  setTimeout(()=>{location.href='explore.html?from=wutan'},700);
+}
+function buildYanmenPortal(){
+  const g=new THREE.Group();
+  const gy=groundHeight(YANMEN_PORTAL.x,YANMEN_PORTAL.z);
+  g.position.set(YANMEN_PORTAL.x,gy,YANMEN_PORTAL.z);
+
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(2.4,2.75,.28,16),CM.stoneDark);
+  addTo(g,base,0,.14,0);
+  for(const s of [-1,1]){
+    const foot=new THREE.Mesh(new THREE.BoxGeometry(.92,.36,.92),CM.stone);
+    addTo(g,foot,s*2.55,.18,0);
+    const post=new THREE.Mesh(new THREE.CylinderGeometry(.22,.30,4.0,10),CM.woodDark);
+    addTo(g,post,s*2.55,2.18,0);
+    const lantern=new THREE.Mesh(new THREE.BoxGeometry(.4,.6,.4),CM.glow);
+    addTo(g,lantern,s*2.55,3.18,0);
+  }
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(6.15,.34,.46),CM.woodDark);
+  addTo(g,beam,0,4.12,0);
+  const plaque=new THREE.Mesh(new THREE.PlaneGeometry(4.1,.98),new THREE.MeshBasicMaterial({map:labelTexture('关 外 官 道','#1c211c','#e8cf9a',512,128,'bold 64px serif'),transparent:true}));
+  plaque.position.set(0,3.52,.28);plaque.rotation.y=Math.PI;g.add(plaque);
+  const side=new THREE.Mesh(new THREE.PlaneGeometry(1.55,.44),new THREE.MeshBasicMaterial({map:labelTexture('乌坦城南 · 十八里','#20120c','#cdb27a',512,96,'bold 38px serif'),transparent:true}));
+  side.position.set(-2.55,2.5,.36);side.rotation.y=Math.PI;g.add(side);
+  const ringMat=new THREE.MeshBasicMaterial({color:0x7ec8ff,transparent:true,opacity:.52,side:THREE.DoubleSide,depthWrite:false});
+  const ring=new THREE.Mesh(new THREE.RingGeometry(1.12,1.55,48),ringMat);
+  ring.rotation.x=-Math.PI/2;ring.position.y=.29;g.add(ring);
+  const ring2=new THREE.Mesh(new THREE.RingGeometry(1.9,2.03,48),ringMat.clone());
+  ring2.material.opacity=.26;ring2.rotation.x=-Math.PI/2;ring2.position.y=.29;g.add(ring2);
+  const light=new THREE.PointLight(0x82d4ff,1.35,11,2);light.position.set(0,1.8,0);g.add(light);
+  scene.add(g);
+  yanmenPortalVisual={group:g,ring,ring2,light};
+  return yanmenPortalVisual;
+}
+buildYanmenPortal();
+addInteract({id:'portal-yanmen',x:YANMEN_PORTAL.x,z:YANMEN_PORTAL.z,r:YANMEN_PORTAL.r,can:()=>GS.ready,label:()=>'出城 · 前往雁门关外野',run:goYanmen});
+
 function openNpcDialog(npc){
   const cat=npc.cat,npcCfg=cat.npc||{title:'城中之人',lines:['……']};
   const lines=(npcCfg.lines&&npcCfg.lines.length)?npcCfg.lines:['……'];
@@ -63591,6 +63667,33 @@ function updateNPCs(dt,time){
       n.body.position.y=0;
     }else n.body.position.y=Math.sin(time*1.7+n.seed)*.01;
   }
+  updateNpcTags(dt);
+}
+const _tagProbeV=new THREE.Vector3();
+function updateNpcTags(dt){
+  if(!camera||!npcs.length)return;
+  const list=[];
+  for(const n of npcs){
+    const tag=n.tag;
+    if(!tag)continue;
+    tag.getWorldPosition(_tagProbeV);
+    const d=_tagProbeV.distanceTo(camera.position);
+    let base=d>=24?0:(d<=14?1:1-(d-14)/10);
+    if(d<2.4)base=Math.min(base,.78);
+    list.push({tag,d,base,w:tag.userData.tagW||2.4,h:tag.userData.tagH||.45});
+  }
+  list.sort((a,b)=>a.d-b.d);
+  const k=Math.min(1,Math.max(.001,dt)*8);
+  for(let i=0;i<list.length;i++){
+    const it=list[i],tag=it.tag;
+    const want=i<6?it.base:0;
+    const cur=tag.material.opacity;
+    const next=cur+(want-cur)*k;
+    tag.material.opacity=next;
+    tag.visible=next>.015;
+    const grow=1+Math.min(.16,Math.max(0,it.d-3)*.009);
+    tag.scale.set(it.w*grow,it.h*grow,1);
+  }
 }
 function templateFromAsset(cat){
   const c=cat.creature||{};
@@ -63622,9 +63725,49 @@ function respawnUnique(e){
 const petState={root:null,entry:null,body:null,cd:0,lungeT:0,wanderAngle:0,wanderRadius:2.0,wanderT:0,stuckT:0,moving:false,minWander:1.8,
   speed:0,vx:0,vz:0,forwardAngle:0,heading:0,anchorX:0,anchorZ:0,anchorReady:false,lastPx:0,lastPz:0,playerVX:0,playerVZ:0,
   followSide:1,idlePause:1.2,loiterT:0,loitering:false,animName:'Idle',wasMoving:false,recover:false,
-  trail:[],trailT:0,aheadWait:false};
+  trail:[],trailT:0,aheadWait:false,steerT:0,steerX:0,steerZ:0,steerBlocked:false,avoidSide:0};
+const _petProbeV=new THREE.Vector3();
+function resolvePetPose(pos,radius,h){
+  resolveWorld(pos,radius,h);
+  resolveExtraBoxes(pos,radius,h,petStallBoxes);
+}
+function petPointClear(x,z,y,radius,h){
+  _petProbeV.set(x,y,z);
+  resolvePetPose(_petProbeV,radius,h);
+  return Math.hypot(_petProbeV.x-x,_petProbeV.z-z)<.10;
+}
+function petPathClear(x0,z0,x1,z1,y,radius,h){
+  const len=Math.hypot(x1-x0,z1-z0);
+  if(len<.25)return true;
+  const n=Math.max(1,Math.ceil(len/.42));
+  const probe=new THREE.Vector3();
+  for(let i=1;i<=n;i++){
+    const t=i/n;
+    probe.set(x0+(x1-x0)*t,y,z0+(z1-z0)*t);
+    resolvePetPose(probe,radius,h);
+    if(Math.hypot(probe.x-(x0+(x1-x0)*t),probe.z-(z0+(z1-z0)*t))>.10)return false;
+  }
+  return true;
+}
+function petSteerTarget(root,tx,tz,h){
+  const dx=tx-root.position.x,dz=tz-root.position.z,d=Math.hypot(dx,dz);
+  if(d<.4)return {x:tx,z:tz,blocked:false,side:0};
+  if(petPathClear(root.position.x,root.position.z,tx,tz,root.position.y,.55,h))
+    return {x:tx,z:tz,blocked:false,side:0};
+  const direct=Math.atan2(dx,dz);
+  const pref=petState.avoidSide||petState.followSide||1;
+  const list=[.55,-.55,1.0,-1.0,1.45,-1.45,1.9,-1.9,2.45,-2.45].map(a=>a*pref);
+  const probeD=Math.max(.9,Math.min(1.65,d));
+  for(const a of list){
+    const nx=root.position.x+Math.sin(direct+a)*probeD;
+    const nz=root.position.z+Math.cos(direct+a)*probeD;
+    if(petPathClear(root.position.x,root.position.z,nx,nz,root.position.y,.60,h))
+      return {x:nx,z:nz,blocked:true,side:a>=0?1:-1};
+  }
+  return {x:tx,z:tz,blocked:true,side:0};
+}
 function petSafeAnchor(px,pz,radius,h,baseAngle){
-  // 在玩家周围找一块没有桌案/屋檐占位的落点，优先保留当前方位。
+  // 在玩家周围找一块没有桌案/屋檐/摊位占位的落点，优先保留当前方位。
   const offsets=[0,.45,-.45,.9,-.9,1.4,-1.4,Math.PI];
   let last=null;
   for(const rr of [radius,radius+.7,radius+1.4]){
@@ -63632,7 +63775,7 @@ function petSafeAnchor(px,pz,radius,h,baseAngle){
       const a=baseAngle+da;
       const tx=px+Math.sin(a)*rr,tz=pz+Math.cos(a)*rr;
       const probe=new THREE.Vector3(tx,0,tz);
-      resolveWorld(probe,.55,h);
+      resolvePetPose(probe,.55,h);
       last={x:tx,z:tz};
       if(Math.hypot(probe.x-tx,probe.z-tz)<.12)return last;
     }
@@ -63694,7 +63837,7 @@ function spawnActivePet(){
     pz=playerModel.position.z+Math.cos(a)*petState.minWander;
   }
   root.position.set(px,groundHeight(px,pz),pz);
-  resolveWorld(root.position,.55,asset.petHeight||1.1);
+  resolvePetPose(root.position,.55,asset.petHeight||1.1);
   scene.add(root);
   petState.forwardAngle=measurePetForward(root);
   if(playerModel){
@@ -63728,7 +63871,7 @@ function updatePet(dt,time){
     petState.followSide=Math.random()<.5?-1:1;
     const a=petState.followSide*Math.PI/2;
     const nx=px+Math.sin(a)*petState.minWander,nz=pz+Math.cos(a)*petState.minWander;
-    root.position.set(nx,groundHeight(nx,nz),nz);resolveWorld(root.position,.55,targetH);
+    root.position.set(nx,groundHeight(nx,nz),nz);resolvePetPose(root.position,.55,targetH);
     root.rotation.y=Math.atan2(px-nx,pz-nz)-petState.forwardAngle;
     petState.speed=0;petState.vx=0;petState.vz=0;petState.playerVX=0;petState.playerVZ=0;
     petState.lastPx=px;petState.lastPz=pz;petState.anchorX=nx;petState.anchorZ=nz;petState.anchorReady=true;
@@ -63828,6 +63971,17 @@ function updatePet(dt,time){
       if(petState.loiterT<=0){petState.loitering=false;petState.idlePause=1.0+Math.random()*1.6}
     }
   }
+  // 目标点在摊位/墙角后面时，先向空的一侧探一步，避免顶着桌沿原地打转。
+  petState.steerT-=dt;
+  if(petState.steerT<=0){
+    const st=petSteerTarget(root,tx,tz,targetH);
+    petState.steerX=st.x;petState.steerZ=st.z;petState.steerBlocked=st.blocked;
+    if(st.side)petState.avoidSide=st.side;
+    petState.steerT=.10;
+  }
+  if(petState.steerBlocked&&Math.hypot(petState.steerX-root.position.x,petState.steerZ-root.position.z)>.18){
+    tx=petState.steerX;tz=petState.steerZ;
+  }
   const dT=Math.hypot(tx-root.position.x,tz-root.position.z);
   // 玩家跑动时灵兽只专注跟随，不回头锁定身后的敌人；停下后才进入战斗姿态。
   let best=null,bestD=9;
@@ -63870,7 +64024,7 @@ function updatePet(dt,time){
   }
   const bx=root.position.x,bz=root.position.z;
   if(petState.speed>.04||Math.hypot(petState.vx,petState.vz)>.08){
-    moveBody(root,petState.vx*dt,petState.vz*dt,.55,targetH);
+    moveBody(root,petState.vx*dt,petState.vz*dt,.55,targetH,petStallBoxes);
   }
   const moved=Math.hypot(root.position.x-bx,root.position.z-bz);
   const movedWant=Math.hypot(petState.vx,petState.vz)*dt;
@@ -63881,7 +64035,7 @@ function updatePet(dt,time){
   const pd2=Math.hypot(root.position.x-px,root.position.z-pz);
   if(pd2<.95&&pd2>.01){
     const nx=(root.position.x-px)/pd2,nz=(root.position.z-pz)/pd2,need=(.95-pd2)*Math.min(1,dt*10);
-    root.position.x+=nx*need;root.position.z+=nz*need;resolveWorld(root.position,.55,targetH);
+    root.position.x+=nx*need;root.position.z+=nz*need;resolvePetPose(root.position,.55,targetH);
   }
   petState.cd-=dt;
   let faceYaw=0;
@@ -64174,6 +64328,14 @@ function finishLoad(){
   }
   const am=/[?&]at=(-?\d+),(-?\d+)/.exec(location.search)
   if(am&&playerModel)playerModel.position.set(+am[1],groundHeight(+am[1],+am[2]),+am[2])
+  const fromYanmen=/[?&]from=yanmen/.test(location.search)
+  if(fromYanmen&&playerModel){
+    // 从关外回来固定落在南门内侧，不让旧存档把玩家丢回城中心或城墙外。
+    const rx=0,rz=64
+    playerModel.position.set(rx,groundHeight(rx,rz),rz)
+    resolveWorld(playerModel.position,.42,1.75)
+    playAnim('Idle')
+  }
   spawnWorldEnemies();
   spawnMonster1();
   spawnCatalogEntries();
@@ -64187,7 +64349,11 @@ function finishLoad(){
   // 天穹/雾层建了 24 层全屏透明球壳，同半径同色的重复壳有 8 份，叠 8 次全屏混合纯属浪费
   dedupeSkyShells();
   setTimeout(()=>{$('loading').classList.add('hide');setLoad(100)},450);
-  showBanner(SAVED&&SAVED.ts?('📜 已读取上次记录 · Lv.'+GS.p.lvl+' · 金币 '+GS.p.gold):'🔥 欢迎来到斗气大陆,少年!');
+  if(fromYanmen){
+    setTimeout(()=>showBanner('🏯 已返回乌坦城 · 南门官道',3000),1250);
+  }else{
+    showBanner(SAVED&&SAVED.ts?('📜 已读取上次记录 · Lv.'+GS.p.lvl+' · 金币 '+GS.p.gold):'🔥 欢迎来到斗气大陆,少年!');
+  }
 }
 function playAnim(name,force=false){
   if(!mixer)return;
@@ -68265,7 +68431,9 @@ animate(performance.now());
 $('help-btn').addEventListener('click',toggleHelp);
 $('bm-close').addEventListener('click',()=>toggleBigMap(false));
 console.log('🔥 斗破苍穹·即时动作版 已就绪');
-window.__dpcq={shops,interactPoints,indoorShop:()=>indoorShop&&indoorShop.name,gainXp,pick:(nx,ny)=>{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const hits=rc.intersectObjects(scene.children,true);return hits.slice(0,4).map(h=>({type:h.object.type,geo:h.object.geometry&&h.object.geometry.type,color:h.object.material&&h.object.material.color&&h.object.material.color.getHexString(),mat:h.object.material&&h.object.material.type,pos:h.point.toArray().map(v=>+v.toFixed(2)),parent:h.object.parent&&h.object.parent.type}))},enemies:()=>enemies.map(e=>({id:e.id,name:e.name,hp:e.hp,maxHp:e.maxHp,aggro:e.aggro,x:+e.root.position.x.toFixed(1),z:+e.root.position.z.toFixed(1)})),damageEnemy,castSkill:sk=>castSkill(SKILLS.find(s=>s.id===sk)),playerAttack,playerDodge,cycleLock,GS,getPos:()=>playerModel?playerModel.position.toArray():null,teleport:(x,z)=>{if(playerModel){playerModel.position.x=x;playerModel.position.z=z;playerModel.position.y=terrainH(x,z)}},scene,renderer,camera,terrainH,setView:(yaw,pitch)=>{if(typeof yaw==='number')cameraYaw=yaw;if(typeof pitch==='number')cameraPitch=Math.max(-.25,Math.min(.85,pitch))},scanGeoms:()=>{const bad=[];scene.traverse(o=>{if(o.geometry&&o.geometry.attributes&&o.geometry.attributes.position){const a=o.geometry.attributes.position,arr=a.array;let nan=0,inf=0,mx=0;for(let i=0;i<arr.length;i++){const v=arr[i];if(Number.isNaN(v))nan++;else if(!Number.isFinite(v))inf++;else{const av=Math.abs(v);if(av>mx)mx=av}}if(nan||inf)bad.push({name:o.name||o.type,verts:a.count,nan,inf,maxAbs:mx})}if(o.geometry&&o.geometry.boundingSphere&&Number.isNaN(o.geometry.boundingSphere.radius))bad.push({name:o.name||o.type,note:'NaN boundingSphere'})});return bad},glErr:()=>{const gl=renderer.getContext();return gl.getError()},pets:()=>GS.p.pets,activePet:()=>getActivePet(),petPos:()=>petState.root?petState.root.position.toArray():null,petInfo:()=>petState.root?({pos:[+petState.root.position.x.toFixed(2),+petState.root.position.z.toFixed(2)],rotY:+petState.root.rotation.y.toFixed(2),angle:+petState.wanderAngle.toFixed(2),radius:+petState.wanderRadius.toFixed(2),moving:petState.moving,speed:+petState.speed.toFixed(2),anim:petState.animName,recover:petState.recover,distP:+Math.hypot(petState.root.position.x-playerModel.position.x,petState.root.position.z-playerModel.position.z).toFixed(2),target:petState.targetName||null,faceYaw:petState.faceYaw===undefined?null:+petState.faceYaw.toFixed(2)}):null,spawnPet:()=>spawnActivePet(),npcs:()=>npcs.map(n=>({name:n.name,x:+n.x.toFixed(1),z:+n.z.toFixed(1)})),talk:(name)=>{const n=npcs.find(x=>x.name===name);if(n)openNpcDialog(n);return !!n},models:()=>MODEL_CATALOG.map(c=>({key:c.key,kind:c.kind,upright:c.upright&&+c.upright.toFixed(2),loaded:!!MODEL_ASSETS[c.key],file:c.file})),tameInfo:()=>nearTame?({name:nearTame.name,hp:nearTame.hp,maxHp:nearTame.maxHp,chance:tameChance(nearTame)}):null,weaken:(name,pct,calm)=>{const e=enemies.find(x=>x.name===name);if(e){e.hp=Math.max(1,e.maxHp*(pct||.25));if(!calm)e.aggro=true}return e?e.hp:null},tame:()=>{if(nearTame)tryTame(nearTame);return nearTame?nearTame.name:null}};
+window.__dpcq={shops,interactPoints,indoorShop:()=>indoorShop&&indoorShop.name,gainXp,pick:(nx,ny)=>{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const hits=rc.intersectObjects(scene.children,true);return hits.slice(0,4).map(h=>({type:h.object.type,geo:h.object.geometry&&h.object.geometry.type,color:h.object.material&&h.object.material.color&&h.object.material.color.getHexString(),mat:h.object.material&&h.object.material.type,pos:h.point.toArray().map(v=>+v.toFixed(2)),parent:h.object.parent&&h.object.parent.type}))},enemies:()=>enemies.map(e=>({id:e.id,name:e.name,hp:e.hp,maxHp:e.maxHp,aggro:e.aggro,x:+e.root.position.x.toFixed(1),z:+e.root.position.z.toFixed(1)})),damageEnemy,castSkill:sk=>castSkill(SKILLS.find(s=>s.id===sk)),playerAttack,playerDodge,cycleLock,GS,getPos:()=>playerModel?playerModel.position.toArray():null,teleport:(x,z)=>{if(playerModel){playerModel.position.x=x;playerModel.position.z=z;playerModel.position.y=terrainH(x,z)}},scene,renderer,camera,terrainH,setView:(yaw,pitch)=>{if(typeof yaw==='number')cameraYaw=yaw;if(typeof pitch==='number')cameraPitch=Math.max(-.25,Math.min(.85,pitch))},scanGeoms:()=>{const bad=[];scene.traverse(o=>{if(o.geometry&&o.geometry.attributes&&o.geometry.attributes.position){const a=o.geometry.attributes.position,arr=a.array;let nan=0,inf=0,mx=0;for(let i=0;i<arr.length;i++){const v=arr[i];if(Number.isNaN(v))nan++;else if(!Number.isFinite(v))inf++;else{const av=Math.abs(v);if(av>mx)mx=av}}if(nan||inf)bad.push({name:o.name||o.type,verts:a.count,nan,inf,maxAbs:mx})}if(o.geometry&&o.geometry.boundingSphere&&Number.isNaN(o.geometry.boundingSphere.radius))bad.push({name:o.name||o.type,note:'NaN boundingSphere'})});return bad},glErr:()=>{const gl=renderer.getContext();return gl.getError()},pets:()=>GS.p.pets,activePet:()=>getActivePet(),petPos:()=>petState.root?petState.root.position.toArray():null,petInfo:()=>petState.root?({pos:[+petState.root.position.x.toFixed(2),+petState.root.position.z.toFixed(2)],rotY:+petState.root.rotation.y.toFixed(2),angle:+petState.wanderAngle.toFixed(2),radius:+petState.wanderRadius.toFixed(2),moving:petState.moving,speed:+petState.speed.toFixed(2),anim:petState.animName,recover:petState.recover,distP:+Math.hypot(petState.root.position.x-playerModel.position.x,petState.root.position.z-playerModel.position.z).toFixed(2),target:petState.targetName||null,faceYaw:petState.faceYaw===undefined?null:+petState.faceYaw.toFixed(2),blocked:!!petState.steerBlocked,avoid:petState.avoidSide,stalls:petStallBoxes.length}):null,petWarp:(x,z)=>{if(!petState.root)return false;petState.root.position.set(x,groundHeight(x,z),z);petState.speed=0;petState.vx=0;petState.vz=0;petState.steerT=0;petState.anchorReady=false;return true},stallBoxes:()=>petStallBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.z.toFixed(2)]})),spawnPet:()=>spawnActivePet(),npcs:()=>npcs.map(n=>({name:n.name,x:+n.x.toFixed(1),z:+n.z.toFixed(1)})),nameTags:()=>npcs.map(n=>{const p=new THREE.Vector3();n.tag.getWorldPosition(p);return {name:n.name,visible:n.tag.visible,opacity:+n.tag.material.opacity.toFixed(2),dist:+p.distanceTo(camera.position).toFixed(1)}}),talk:(name)=>{const n=npcs.find(x=>x.name===name);if(n)openNpcDialog(n);return !!n},models:()=>MODEL_CATALOG.map(c=>({key:c.key,kind:c.kind,upright:c.upright&&+c.upright.toFixed(2),loaded:!!MODEL_ASSETS[c.key],file:c.file})),tameInfo:()=>nearTame?({name:nearTame.name,hp:nearTame.hp,maxHp:nearTame.maxHp,chance:tameChance(nearTame)}):null,weaken:(name,pct,calm)=>{const e=enemies.find(x=>x.name===name);if(e){e.hp=Math.max(1,e.maxHp*(pct||.25));if(!calm)e.aggro=true}return e?e.hp:null},tame:()=>{if(nearTame)tryTame(nearTame);return nearTame?nearTame.name:null}};
+window.__dpcq.quest=()=>{const q=yanmenQuest();return {stage:q.stage,crate:questCrate?{x:+questCrate.position.x.toFixed(2),z:+questCrate.position.z.toFixed(2),visible:questCrate.visible}:null,cratePointCan:!!(questCratePoint&&questCratePoint.can&&questCratePoint.can())}};
+window.__dpcq.killBandit=()=>{const e=enemies.find(x=>x.name==='山贼'&&!x.dead);if(!e)return false;e.hp=1;damageEnemy(e,9999,false,false,true);return true};
 
 </script><script>
 // 角色固定使用 character.glb：不再提供任何“选择角色模型”的流程
