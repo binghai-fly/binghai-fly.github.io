@@ -60368,6 +60368,11 @@ scene.add(new THREE.Mesh(new THREE.SphereGeometry(1400, 32, 16), new THREE.MeshB
 const CITY = { half: 52, wallH: 7.2, wallT: 2.6, gate: 12 }
 
 const worldColliders = []
+// 桌案类低矮家具单独一层碰撞：普通世界碰撞盒保留真实高度给镜头/视线用，
+// 这里把桌沿抬到 2.8m，避免二段跳直接穿过桌面。
+const furnitureBoxes = []
+const collisionBoxes = []
+const TABLE_BLOCK_TOP = 2.8
 // 相机避障缓存：碰撞表里有建筑 + 120 根树干 + 岩石，数量很大。
 // 每帧 clone/expand 这些 Box3 会产生大量临时对象，GC 一来就卡一下，所以只在碰撞表变化时重建。
 let _camBoxes = null
@@ -60392,7 +60397,15 @@ function camColliderBoxes() {
 }
 function finalizeColliders(g) {
   g.updateMatrixWorld(true)
-  g.traverse(o => { if (o.userData.solid) addCollider(o) })
+  g.traverse(o => {
+    if (o.userData.solid) addCollider(o)
+    if (o.userData.furniture && !o.userData.furnitureBoxed) {
+      o.userData.furnitureBoxed = true
+      const b = new THREE.Box3().setFromObject(o)
+      b.max.y = Math.max(b.max.y, TABLE_BLOCK_TOP)
+      furnitureBoxes.push(b); collisionBoxes.push(b)
+    }
+  })
 }
 function addCollider(mesh) {
   mesh.updateWorldMatrix(true, false)
@@ -60974,6 +60987,7 @@ function shopInterior(g, cfg, D) {
   const counter = new THREE.Mesh(new THREE.BoxGeometry(cw, 1.0, 0.66), CM.wood)
   addTo(g, counter, cx, 0.5, cz)
   counter.userData.solid = true
+  counter.userData.furniture = true
   const ctop = new THREE.Mesh(new THREE.BoxGeometry(cw + 0.14, 0.09, 0.78), CM.woodDark)
   addTo(g, ctop, cx, 1.03, cz)
   const cpanel = new THREE.Mesh(new THREE.BoxGeometry(cw - 0.14, 0.42, 0.035), CM.red)
@@ -61005,8 +61019,8 @@ function shopInterior(g, cfg, D) {
         g.add(hoop)
       }
     }
-    const tableTop = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.08, 16), CM.wood)
-    addTo(g, tableTop, -iw * 0.3, 0.76, z0 + 3.5)
+    const tableTop = addTo(g, new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.08, 16), CM.wood), -iw * 0.3, 0.76, z0 + 3.5)
+    tableTop.userData.furniture = true
     const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 0.74, 8), CM.woodDark)
     addTo(g, pedestal, -iw * 0.3, 0.37, z0 + 3.5)
     for (const s of [-1, 1]) {
@@ -61052,6 +61066,7 @@ function shopInterior(g, cfg, D) {
     const forge = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.9, 1.0), CM.forge)
     addTo(g, forge, forgeX, 0.45, forgeZ)
     forge.userData.solid = true
+    forge.userData.furniture = true
     const coal = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.08, 0.58), CM.coal)
     coal.position.set(forgeX, 0.9, forgeZ)
     g.add(coal)
@@ -61077,6 +61092,7 @@ function shopInterior(g, cfg, D) {
     addTo(g, anvilBase, anvilX, 0.23, anvilZ)
     const anvil = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.17, 0.34), CM.steel)
     addTo(g, anvil, anvilX, 0.55, anvilZ)
+    anvil.userData.furniture = true
     const horn = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.34, 6), CM.steel)
     horn.rotation.z = -Math.PI / 2
     horn.position.set(anvilX + 0.62, 0.55, anvilZ)
@@ -61673,9 +61689,10 @@ function marketStall(x, z, ry, cloth) {
   g.rotation.y = ry
   cityGroup.add(g)
   g.updateMatrixWorld(true)
-  const stallBox = new THREE.Box3(new THREE.Vector3(-1.12, 0, -0.72), new THREE.Vector3(1.12, 1.2, 0.72))
+  const stallBox = new THREE.Box3(new THREE.Vector3(-1.12, 0, -0.72), new THREE.Vector3(1.12, TABLE_BLOCK_TOP, 0.72))
   stallBox.applyMatrix4(g.matrixWorld)
   stallBoxes.push(stallBox)
+  collisionBoxes.push(stallBox)
   return g
 }
 
@@ -63174,7 +63191,7 @@ function DRACOWorker() {
 })();
 /* ===== /DRACOLoader ===== */
 let playerModel=null,mixer=null,animations={},currentAnim=null,weaponModel=null
-let wings=null,wingL=null,wingR=null,wingMatOuter=null,wingMatInner=null,wingAssetReady=false,wingAssetError=false
+let wings=null,wingL=null,wingR=null,wingMatOuter=null,wingMatInner=null,wingAssetReady=false,wingAssetError=false,wingPending=false;
 let wingsOn=false,flyCeilMsg=false,wingLean=0,wingFoldGlide=0;
 const FLY_CEIL=58;
 const clock=new THREE.Clock();
@@ -63212,7 +63229,10 @@ function loadMonster1GLB(){
       });
     });
     MODEL_ASSETS.monster1={key:'monster1',gltf,name:'怪兽1',icon:'🐲',petHeight:1.3,petAtk:12,targetH:1.85,yaw:Math.PI/2,kind:'creature'};
-    if(GS.ready)spawnMonster1();
+    if(GS.ready){
+      spawnMonster1();
+      if((getActivePet()||{}).key==='monster1')spawnActivePet();
+    }
   },undefined,err=>{monster1Loading=false;console.warn('[怪兽1] 模型加载失败',err)});
 }
 function makeMonster1Root(){
@@ -63426,19 +63446,83 @@ function buildModelRoot(asset,targetH,yaw,kind){
   });
   return root;
 }
+const MODEL_LOAD_CONCURRENCY=2;
+const modelLoadQueue=[];
+const modelLoadingKeys=new Set();
+let modelLoadsActive=0, lazyModelT=0;
+function catalogPending(key){
+  return modelLoadingKeys.has(key)||modelLoadQueue.some(q=>q.cat.key===key);
+}
+function pumpModelQueue(){
+  while(modelLoadsActive<MODEL_LOAD_CONCURRENCY&&modelLoadQueue.length){
+    const item=modelLoadQueue.shift();
+    const cat=item.cat,key=cat.key;
+    if(MODEL_ASSETS[key]||modelLoadingKeys.has(key))continue;
+    modelLoadingKeys.add(key);modelLoadsActive++;
+    gltfLoader.load('./'+cat.file,gltf=>{
+      try{
+        tuneModelMaterials(gltf);
+        const cls=classifyModel(gltf.scene);
+        cat.kind=cls.kind;cat.upright=cls.upright;
+        MODEL_ASSETS[key]={key,gltf,name:cat.name,icon:cat.icon,targetH:cat.targetH,
+          petHeight:(cat.creature&&cat.creature.petHeight)||1.1,petAtk:(cat.creature&&cat.creature.petAtk)||8,
+          yaw:cat.yaw||0,kind:cls.kind,catalog:cat};
+        console.log('[模型自动分类] '+cat.file+' → '+(cls.kind==='npc'?'NPC':'生物')+'（直立度 '+cls.upright.toFixed(2)+'）');
+        if(GS.ready){spawnCatalogEntry(cat);spawnActivePet();reskinHumanoidEnemies(key);}
+      }catch(e){console.warn('[模型] '+cat.file+' 装配失败',e)}
+      finally{modelLoadingKeys.delete(key);modelLoadsActive--;pumpModelQueue()}
+    },undefined,err=>{
+      modelLoadingKeys.delete(key);modelLoadsActive--;
+      console.warn('[模型] '+cat.file+' 加载失败',err);pumpModelQueue();
+    });
+  }
+}
+function ensureCatalogModel(key,urgent){
+  const cat=MODEL_CATALOG.find(c=>c.key===key);
+  if(!cat||MODEL_ASSETS[key]||catalogPending(key))return;
+  const p=playerModel?playerModel.position:{x:0,z:8};
+  const d=Math.hypot(cat.spawn.x-p.x,cat.spawn.z-p.z);
+  modelLoadQueue.push({cat,priority:(urgent?5000:0)+Math.max(0,200-d*4)});
+  modelLoadQueue.sort((a,b)=>b.priority-a.priority);
+  pumpModelQueue();
+}
+function playerBusy(){
+  return !GS.ready||!playerModel||dodging||attackAnimT>0||windTrial.active||airCombat.active||
+    keys.w||keys.a||keys.s||keys.d||keys.shift||Math.abs(touchMove.x)+Math.abs(touchMove.y)>.1;
+}
+function updateLazyModels(dt){
+  lazyModelT+=dt||0;
+  if(lazyModelT<.8)return;lazyModelT=0;
+  if(!GS.ready||!playerModel||playerBusy())return;
+  loadModelPack();
+  if(playerModel&&!wings&&SAVED&&SAVED.wings)attachIceWings(playerModel);
+  const active=getActivePet();
+  if(active){
+    if(active.key==='monster1')loadMonster1GLB();
+    else ensureCatalogModel(active.key,true);
+  }
+  const p=playerModel.position;
+  for(const cat of MODEL_CATALOG){
+    if(MODEL_ASSETS[cat.key]||catalogPending(cat.key))continue;
+    const d=Math.hypot(cat.spawn.x-p.x,cat.spawn.z-p.z);
+    // 城内 NPC 22m 内加载；野生灵兽 24m 内加载，麒麟这类远处的等走近再拉。
+    if(d<(cat.creature?24:22))ensureCatalogModel(cat.key);
+  }
+}
 function loadModelPack(){
   if(modelPackStarted)return;modelPackStarted=true;
-  for(const cat of MODEL_CATALOG){
-    gltfLoader.load('./'+cat.file,gltf=>{
-      tuneModelMaterials(gltf);
-      const cls=classifyModel(gltf.scene);
-      cat.kind=cls.kind;cat.upright=cls.upright;
-      MODEL_ASSETS[cat.key]={key:cat.key,gltf,name:cat.name,icon:cat.icon,targetH:cat.targetH,
-        petHeight:(cat.creature&&cat.creature.petHeight)||1.1,petAtk:(cat.creature&&cat.creature.petAtk)||8,
-        yaw:cat.yaw||0,kind:cls.kind,catalog:cat};
-      console.log('[模型自动分类] '+cat.file+' → '+(cls.kind==='npc'?'NPC':'生物')+'（直立度 '+cls.upright.toFixed(2)+'）');
-      if(GS.ready){spawnCatalogEntry(cat);spawnActivePet();reskinHumanoidEnemies(cat.key);}
-    },undefined,err=>console.warn('[模型] '+cat.file+' 加载失败',err));
+  const p=playerModel?playerModel.position:{x:0,z:8};
+  const near=MODEL_CATALOG.filter(cat=>Math.hypot(cat.spawn.x-p.x,cat.spawn.z-p.z)<=20);
+  near.sort((a,b)=>Math.hypot(a.spawn.x-p.x,a.spawn.z-p.z)-Math.hypot(b.spawn.x-p.x,b.spawn.z-p.z));
+  for(const cat of near)ensureCatalogModel(cat.key);
+}
+function pumpBackgroundAssets(){
+  if(!GS.ready||!playerModel||playerBusy())return;
+  loadModelPack();
+  if(!wings&&SAVED&&SAVED.wings)attachIceWings(playerModel);
+  if(!monsterGltf&&!monster1Loading){
+    const d=Math.hypot(playerModel.position.x,playerModel.position.z-24);
+    if(d<38)loadMonster1GLB();
   }
 }
 function spawnCatalogEntries(){for(const cat of MODEL_CATALOG)spawnCatalogEntry(cat)}
@@ -63731,7 +63815,7 @@ const petState={root:null,entry:null,body:null,cd:0,lungeT:0,wanderAngle:0,wande
 const _petProbeV=new THREE.Vector3();
 function resolvePetPose(pos,radius,h){
   resolveWorld(pos,radius,h);
-  resolveExtraBoxes(pos,radius,h,stallBoxes);
+  resolveExtraBoxes(pos,radius,h,collisionBoxes);
 }
 function petPointClear(x,z,y,radius,h){
   _petProbeV.set(x,y,z);
@@ -63827,7 +63911,12 @@ function spawnActivePet(){
   const entry=getActivePet();
   if(!entry){updatePetChip();return null}
   const asset=MODEL_ASSETS[entry.key];
-  if(!asset){updatePetChip();return null}
+  if(!asset){
+    // 灵兽模型不再跟着首屏一起下载；召唤时才按需拉取，到位后自动补建。
+    if(entry.key==='monster1')loadMonster1GLB();
+    else ensureCatalogModel(entry.key,true);
+    updatePetChip();return null;
+  }
   const root=buildModelRoot(asset,asset.petHeight||1.1,asset.yaw||0,'pet');
   petState.minWander=Math.max(1.6,(asset.petHeight||1.1)*.95+.72);
   petState.followSide=Math.random()<.5?-1:1;
@@ -64026,7 +64115,7 @@ function updatePet(dt,time){
   }
   const bx=root.position.x,bz=root.position.z;
   if(petState.speed>.04||Math.hypot(petState.vx,petState.vz)>.08){
-    moveBody(root,petState.vx*dt,petState.vz*dt,.55,targetH,stallBoxes);
+    moveBody(root,petState.vx*dt,petState.vz*dt,.55,targetH,collisionBoxes);
   }
   const moved=Math.hypot(root.position.x-bx,root.position.z-bz);
   const movedWant=Math.hypot(petState.vx,petState.vz)*dt;
@@ -64167,8 +64256,7 @@ function renderPetPanel(){
     }
   });
 }
-loadMonster1GLB();
-loadModelPack();
+// 首屏只让主角独占下载通道；NPC / 灵兽 / 魔兽在 ready 之后按距离和需求排队加载。
 function onCharLoaded(gltf){
   if(GS.ready)return;
   const visual=gltf.scene;
@@ -64258,7 +64346,7 @@ function onCharLoaded(gltf){
       else if(c.name&&c.name.indexOf('Sword')>=0)c.geometry=decimateGeoUV(c.geometry,320);
     });
   }
-  attachIceWings(playerModel);
+  // 冰翼不是首屏必需资产，等玩家进入游戏后再加载，避免和 NPC 队列抢带宽。
   scene.add(playerModel);
   finishLoad();
 }
@@ -64348,6 +64436,8 @@ function finishLoad(){
   if(GS.p.hp<=0){playerAlive=false;GS.dead=true;$('death-screen').classList.add('on');$('death-info').textContent='于乌坦城重聚斗气'}
   // 预编译所有材质：否则第一次把镜头转向某片区域时会现场编译着色器，卡一下
   try{renderer.compile(scene,camera)}catch(err){}
+  // 主角已就绪后再让 NPC/魔兽排队进来；首屏不再和主角抢那条慢链路。
+  // 等玩家站稳（pumpBackgroundAssets / updateLazyModels 检测无移动输入）后再开始拉模型，避免边跑边解析掉帧。
   // 天穹/雾层建了 24 层全屏透明球壳，同半径同色的重复壳有 8 份，叠 8 次全屏混合纯属浪费
   dedupeSkyShells();
   setTimeout(()=>{$('loading').classList.add('hide');setLoad(100)},450);
@@ -66728,16 +66818,26 @@ function attachIceWings(model){
       }
     })
     wingAssetReady=true;wingAssetError=false
+    if(wingPending){wingPending=false;wingsOn=true}
     wings.visible=wingsOn
     updateWings(0);updateWingDbg()
   },undefined,err=>{
     wingAssetReady=false;wingAssetError=true;wings.visible=false
+    wingPending=false
+    if(wings&&playerModel){playerModel.remove(wings);wings=null}
     console.warn('[冰晶翼] Blender 模型加载失败',err)
     updateWingDbg()
   })
 }
 function toggleWings(){
-  if(!wings)return
+  if(!wings){
+    if(playerModel){
+      wingPending=true;attachIceWings(playerModel);
+      showBanner('❄ 冰翼正在凝聚…');
+    }
+    return
+  }
+  if(!wingAssetReady){showBanner('❄ 冰翼正在凝聚…');return}
   wingsOn=!wingsOn
   wings.visible=wingsOn
   if(!wingsOn){
@@ -66825,11 +66925,11 @@ function animate(t,forcedDelta){
     const isMoving=_mv.length()>.1;
     const speed=(keys.shift?runSpeed:walkSpeed)*(wingsOn?1.35:1)*(wingsOn&&GS.p.windS?1.08:1);
     dodging=!GS.dead&&gameNow()<dodgeT;
-    if(dodging)moveBody(playerModel,dodgeDir.x*7.5*md,dodgeDir.z*7.5*md,.42,1.75,stallBoxes);
+    if(dodging)moveBody(playerModel,dodgeDir.x*7.5*md,dodgeDir.z*7.5*md,.42,1.75,collisionBoxes);
     if(isMoving&&!dodging&&!GS.dead){
       _mv.normalize();
       const pace=attackAnimT>0?.35:1;
-      moveBody(playerModel,_mv.x*speed*pace*md,_mv.z*speed*pace*md,.42,1.75,stallBoxes);
+      moveBody(playerModel,_mv.x*speed*pace*md,_mv.z*speed*pace*md,.42,1.75,collisionBoxes);
       if(attackAnimT<=0)playerModel.rotation.y=Math.atan2(_mv.x,_mv.z);
     }
     // 飞行移动时身体前倾（不走走路动作，只倾斜身子）
@@ -67002,6 +67102,7 @@ function animate(t,forcedDelta){
   if(playerModel){
     updateNPCs(delta,time);
     updatePet(delta,time);
+    updateLazyModels(delta);
     for(let i=enemies.length-1;i>=0;i--)updateEnemy(enemies[i],delta,time,playerModel.position);
     updateAirShots(delta);
     for(let i=respawns.length-1;i>=0;i--)if(gameTime>=respawns[i].at){ensureAreaEnemies(respawns[i].area);respawns.splice(i,1)}
@@ -68433,9 +68534,17 @@ animate(performance.now());
 $('help-btn').addEventListener('click',toggleHelp);
 $('bm-close').addEventListener('click',()=>toggleBigMap(false));
 console.log('🔥 斗破苍穹·即时动作版 已就绪');
-window.__dpcq={shops,interactPoints,indoorShop:()=>indoorShop&&indoorShop.name,gainXp,pick:(nx,ny)=>{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const hits=rc.intersectObjects(scene.children,true);return hits.slice(0,4).map(h=>({type:h.object.type,geo:h.object.geometry&&h.object.geometry.type,color:h.object.material&&h.object.material.color&&h.object.material.color.getHexString(),mat:h.object.material&&h.object.material.type,pos:h.point.toArray().map(v=>+v.toFixed(2)),parent:h.object.parent&&h.object.parent.type}))},enemies:()=>enemies.map(e=>({id:e.id,name:e.name,hp:e.hp,maxHp:e.maxHp,aggro:e.aggro,x:+e.root.position.x.toFixed(1),z:+e.root.position.z.toFixed(1)})),damageEnemy,castSkill:sk=>castSkill(SKILLS.find(s=>s.id===sk)),playerAttack,playerDodge,cycleLock,GS,getPos:()=>playerModel?playerModel.position.toArray():null,teleport:(x,z)=>{if(playerModel){playerModel.position.x=x;playerModel.position.z=z;playerModel.position.y=terrainH(x,z)}},scene,renderer,camera,terrainH,setView:(yaw,pitch)=>{if(typeof yaw==='number')cameraYaw=yaw;if(typeof pitch==='number')cameraPitch=Math.max(-.25,Math.min(.85,pitch))},scanGeoms:()=>{const bad=[];scene.traverse(o=>{if(o.geometry&&o.geometry.attributes&&o.geometry.attributes.position){const a=o.geometry.attributes.position,arr=a.array;let nan=0,inf=0,mx=0;for(let i=0;i<arr.length;i++){const v=arr[i];if(Number.isNaN(v))nan++;else if(!Number.isFinite(v))inf++;else{const av=Math.abs(v);if(av>mx)mx=av}}if(nan||inf)bad.push({name:o.name||o.type,verts:a.count,nan,inf,maxAbs:mx})}if(o.geometry&&o.geometry.boundingSphere&&Number.isNaN(o.geometry.boundingSphere.radius))bad.push({name:o.name||o.type,note:'NaN boundingSphere'})});return bad},glErr:()=>{const gl=renderer.getContext();return gl.getError()},pets:()=>GS.p.pets,activePet:()=>getActivePet(),petPos:()=>petState.root?petState.root.position.toArray():null,petInfo:()=>petState.root?({pos:[+petState.root.position.x.toFixed(2),+petState.root.position.z.toFixed(2)],rotY:+petState.root.rotation.y.toFixed(2),angle:+petState.wanderAngle.toFixed(2),radius:+petState.wanderRadius.toFixed(2),moving:petState.moving,speed:+petState.speed.toFixed(2),anim:petState.animName,recover:petState.recover,distP:+Math.hypot(petState.root.position.x-playerModel.position.x,petState.root.position.z-playerModel.position.z).toFixed(2),target:petState.targetName||null,faceYaw:petState.faceYaw===undefined?null:+petState.faceYaw.toFixed(2),blocked:!!petState.steerBlocked,avoid:petState.avoidSide,stalls:stallBoxes.length}):null,petWarp:(x,z)=>{if(!petState.root)return false;petState.root.position.set(x,groundHeight(x,z),z);petState.speed=0;petState.vx=0;petState.vz=0;petState.steerT=0;petState.anchorReady=false;return true},stallBoxes:()=>stallBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.z.toFixed(2)]})),spawnPet:()=>spawnActivePet(),npcs:()=>npcs.map(n=>({name:n.name,x:+n.x.toFixed(1),z:+n.z.toFixed(1)})),nameTags:()=>npcs.map(n=>{const p=new THREE.Vector3();n.tag.getWorldPosition(p);return {name:n.name,visible:n.tag.visible,opacity:+n.tag.material.opacity.toFixed(2),dist:+p.distanceTo(camera.position).toFixed(1)}}),talk:(name)=>{const n=npcs.find(x=>x.name===name);if(n)openNpcDialog(n);return !!n},models:()=>MODEL_CATALOG.map(c=>({key:c.key,kind:c.kind,upright:c.upright&&+c.upright.toFixed(2),loaded:!!MODEL_ASSETS[c.key],file:c.file})),tameInfo:()=>nearTame?({name:nearTame.name,hp:nearTame.hp,maxHp:nearTame.maxHp,chance:tameChance(nearTame)}):null,weaken:(name,pct,calm)=>{const e=enemies.find(x=>x.name===name);if(e){e.hp=Math.max(1,e.maxHp*(pct||.25));if(!calm)e.aggro=true}return e?e.hp:null},tame:()=>{if(nearTame)tryTame(nearTame);return nearTame?nearTame.name:null}};
+window.__dpcq={shops,interactPoints,indoorShop:()=>indoorShop&&indoorShop.name,gainXp,pick:(nx,ny)=>{const rc=new THREE.Raycaster();rc.setFromCamera(new THREE.Vector2(nx,ny),camera);const hits=rc.intersectObjects(scene.children,true);return hits.slice(0,4).map(h=>({type:h.object.type,geo:h.object.geometry&&h.object.geometry.type,color:h.object.material&&h.object.material.color&&h.object.material.color.getHexString(),mat:h.object.material&&h.object.material.type,pos:h.point.toArray().map(v=>+v.toFixed(2)),parent:h.object.parent&&h.object.parent.type}))},enemies:()=>enemies.map(e=>({id:e.id,name:e.name,hp:e.hp,maxHp:e.maxHp,aggro:e.aggro,x:+e.root.position.x.toFixed(1),z:+e.root.position.z.toFixed(1)})),damageEnemy,castSkill:sk=>castSkill(SKILLS.find(s=>s.id===sk)),playerAttack,playerDodge,cycleLock,GS,getPos:()=>playerModel?playerModel.position.toArray():null,teleport:(x,z)=>{if(playerModel){playerModel.position.x=x;playerModel.position.z=z;playerModel.position.y=terrainH(x,z)}},scene,renderer,camera,terrainH,setView:(yaw,pitch)=>{if(typeof yaw==='number')cameraYaw=yaw;if(typeof pitch==='number')cameraPitch=Math.max(-.25,Math.min(.85,pitch))},collidersNear:(x,z,r=3)=>worldColliders.filter(b=>x>=b.min.x-r&&x<=b.max.x+r&&z>=b.min.z-r&&z<=b.max.z+r).map(b=>({min:[+b.min.x.toFixed(2),+b.min.y.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.y.toFixed(2),+b.max.z.toFixed(2)]})),scanGeoms:()=>{const bad=[];scene.traverse(o=>{if(o.geometry&&o.geometry.attributes&&o.geometry.attributes.position){const a=o.geometry.attributes.position,arr=a.array;let nan=0,inf=0,mx=0;for(let i=0;i<arr.length;i++){const v=arr[i];if(Number.isNaN(v))nan++;else if(!Number.isFinite(v))inf++;else{const av=Math.abs(v);if(av>mx)mx=av}}if(nan||inf)bad.push({name:o.name||o.type,verts:a.count,nan,inf,maxAbs:mx})}if(o.geometry&&o.geometry.boundingSphere&&Number.isNaN(o.geometry.boundingSphere.radius))bad.push({name:o.name||o.type,note:'NaN boundingSphere'})});return bad},glErr:()=>{const gl=renderer.getContext();return gl.getError()},pets:()=>GS.p.pets,activePet:()=>getActivePet(),petPos:()=>petState.root?petState.root.position.toArray():null,petInfo:()=>petState.root?({pos:[+petState.root.position.x.toFixed(2),+petState.root.position.z.toFixed(2)],rotY:+petState.root.rotation.y.toFixed(2),angle:+petState.wanderAngle.toFixed(2),radius:+petState.wanderRadius.toFixed(2),moving:petState.moving,speed:+petState.speed.toFixed(2),anim:petState.animName,recover:petState.recover,distP:+Math.hypot(petState.root.position.x-playerModel.position.x,petState.root.position.z-playerModel.position.z).toFixed(2),target:petState.targetName||null,faceYaw:petState.faceYaw===undefined?null:+petState.faceYaw.toFixed(2),blocked:!!petState.steerBlocked,avoid:petState.avoidSide,stalls:stallBoxes.length}):null,petWarp:(x,z)=>{if(!petState.root)return false;petState.root.position.set(x,groundHeight(x,z),z);petState.speed=0;petState.vx=0;petState.vz=0;petState.steerT=0;petState.anchorReady=false;return true},furnitureBoxes:()=>furnitureBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.y.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.y.toFixed(2),+b.max.z.toFixed(2)]})),modelQueue:()=>({active:modelLoadsActive,queue:modelLoadQueue.map(q=>q.cat.key),loading:[...modelLoadingKeys]}),input:()=>({busy:playerBusy(),w:keys.w,a:keys.a,s:keys.s,d:keys.d,shift:keys.shift,dodging,attack:attackAnimT,wind:windTrial.active,air:airCombat.active,paused:GS.paused,lazyT:+lazyModelT.toFixed(2)}),stallBoxes:()=>stallBoxes.map(b=>({min:[+b.min.x.toFixed(2),+b.min.z.toFixed(2)],max:[+b.max.x.toFixed(2),+b.max.z.toFixed(2)]})),spawnPet:()=>spawnActivePet(),npcs:()=>npcs.map(n=>({name:n.name,x:+n.x.toFixed(1),z:+n.z.toFixed(1)})),nameTags:()=>npcs.map(n=>{const p=new THREE.Vector3();n.tag.getWorldPosition(p);return {name:n.name,visible:n.tag.visible,opacity:+n.tag.material.opacity.toFixed(2),dist:+p.distanceTo(camera.position).toFixed(1)}}),talk:(name)=>{const n=npcs.find(x=>x.name===name);if(n)openNpcDialog(n);return !!n},models:()=>MODEL_CATALOG.map(c=>({key:c.key,kind:c.kind,upright:c.upright&&+c.upright.toFixed(2),loaded:!!MODEL_ASSETS[c.key],file:c.file})),tameInfo:()=>nearTame?({name:nearTame.name,hp:nearTame.hp,maxHp:nearTame.maxHp,chance:tameChance(nearTame)}):null,weaken:(name,pct,calm)=>{const e=enemies.find(x=>x.name===name);if(e){e.hp=Math.max(1,e.maxHp*(pct||.25));if(!calm)e.aggro=true}return e?e.hp:null},tame:()=>{if(nearTame)tryTame(nearTame);return nearTame?nearTame.name:null}};
 window.__dpcq.quest=()=>{const q=yanmenQuest();return {stage:q.stage,crate:questCrate?{x:+questCrate.position.x.toFixed(2),z:+questCrate.position.z.toFixed(2),visible:questCrate.visible}:null,cratePointCan:!!(questCratePoint&&questCratePoint.can&&questCratePoint.can())}};
 window.__dpcq.killBandit=()=>{const e=enemies.find(x=>x.name==='山贼'&&!x.dead);if(!e)return false;e.hp=1;damageEnemy(e,9999,false,false,true);return true};
+window.__dpcq.probeExtra=(sx,sz,dx,dz,steps=40,y=0,radius=.42,height=1.75)=>{
+  const p=new THREE.Vector3(sx,y,sz);
+  for(let i=0;i<steps;i++){p.x+=dx/steps;p.z+=dz/steps;resolveExtraBoxes(p,radius,height,collisionBoxes);}
+  return [+p.x.toFixed(2),+p.y.toFixed(2),+p.z.toFixed(2)];
+};
+// 低频兜底：帧率很低或页面刚恢复时，updateLazyModels 可能迟迟攒不够 0.8s 的 delta；
+// 用真实时间再推一把，但只在玩家完全静止时加载，避免边走边解析模型掉帧。
+setInterval(pumpBackgroundAssets,1200);
 
 </script><script>
 // 角色固定使用 character.glb：不再提供任何“选择角色模型”的流程
