@@ -64513,7 +64513,7 @@ function loadFullCharacter(){
     if(heroUpgradeTry<3){setHeroStatus('真身读取失败，重试 ('+heroUpgradeTry+'/3)');setTimeout(loadFullCharacter,1500);return}
     heroUpgradePending=false;modelPackStarted=false;
     setHeroStatus('剑影常驻 · 真身加载失败',true);
-    try{loadModelPack()}catch(e){}
+    try{loadModelPack();spawnActivePet();updatePetChip()}catch(e){}
   });
 }
 function showModelError(msg){
