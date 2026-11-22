@@ -1,0 +1,512 @@
+{
+  "scene": "雁门关",
+  "coordinate_system": "glTF Y-up; position = [blender x, blender z, -blender y]; rotationY = blender rot_z",
+  "characters": {
+    "laborer": {
+      "glb": "yanmen_laborer.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.72
+    },
+    "guard": {
+      "glb": "yanmen_guard.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.779
+    },
+    "female": {
+      "glb": "yanmen_female.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.64
+    },
+    "elder": {
+      "glb": "yanmen_elder.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.68
+    },
+    "crowd": {
+      "glb": "yanmen_crowd.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.722
+    },
+    "hero": {
+      "glb": "yanmen_swordsman.glb",
+      "animations": [
+        "Idle",
+        "Walk"
+      ],
+      "height": 1.72
+    }
+  },
+  "npcs": [
+    {
+      "name": "东南_渔翁",
+      "type": "elder",
+      "blender": [
+        172.0,
+        -212.0,
+        -1.9393
+      ],
+      "gltf": {
+        "position": [
+          172.0,
+          -1.9393,
+          212.0
+        ],
+        "rotationY": 0.0,
+        "scale": 0.98
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "东溪_桥卒",
+      "type": "guard",
+      "blender": [
+        160.0,
+        -84.0,
+        1.95
+      ],
+      "gltf": {
+        "position": [
+          160.0,
+          1.95,
+          84.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.02
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "东溪_渔人",
+      "type": "laborer",
+      "blender": [
+        188.0,
+        -103.0,
+        1.9775
+      ],
+      "gltf": {
+        "position": [
+          188.0,
+          1.9775,
+          103.0
+        ],
+        "rotationY": 0.0,
+        "scale": 0.98
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "东溪_船工",
+      "type": "laborer",
+      "blender": [
+        146.0,
+        -58.0,
+        1.6978
+      ],
+      "gltf": {
+        "position": [
+          146.0,
+          1.6978,
+          58.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "内城_吏员",
+      "type": "elder",
+      "blender": [
+        1.65,
+        6.8,
+        0.3142
+      ],
+      "gltf": {
+        "position": [
+          1.65,
+          0.3142,
+          -6.8
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "内城_城门卒",
+      "type": "guard",
+      "blender": [
+        -2.05,
+        8.7,
+        0.3716
+      ],
+      "gltf": {
+        "position": [
+          -2.05,
+          0.3716,
+          -8.7
+        ],
+        "rotationY": 0.0,
+        "scale": 1.05
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "内城_游僧",
+      "type": "elder",
+      "blender": [
+        2.15,
+        10.7,
+        0.431
+      ],
+      "gltf": {
+        "position": [
+          2.15,
+          0.431,
+          -10.7
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "北岭_守卒乙",
+      "type": "guard",
+      "blender": [
+        1.6,
+        147.0,
+        1.6392
+      ],
+      "gltf": {
+        "position": [
+          1.6,
+          1.6392,
+          -147.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.02
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "北岭_守卒甲",
+      "type": "crowd",
+      "blender": [
+        -1.0,
+        152.0,
+        1.7339
+      ],
+      "gltf": {
+        "position": [
+          -1.0,
+          1.7339,
+          -152.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "北岭_老卒",
+      "type": "elder",
+      "blender": [
+        2.0,
+        153.0,
+        1.7339
+      ],
+      "gltf": {
+        "position": [
+          2.0,
+          1.7339,
+          -153.0
+        ],
+        "rotationY": 0.0,
+        "scale": 0.98
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "南野_枫庐主人",
+      "type": "elder",
+      "blender": [
+        -176.0,
+        -204.0,
+        18.8994
+      ],
+      "gltf": {
+        "position": [
+          -176.0,
+          18.8994,
+          204.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "南野_牧人",
+      "type": "laborer",
+      "blender": [
+        24.0,
+        -229.0,
+        9.6286
+      ],
+      "gltf": {
+        "position": [
+          24.0,
+          9.6286,
+          229.0
+        ],
+        "rotationY": 0.0,
+        "scale": 0.98
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "南野_马夫",
+      "type": "laborer",
+      "blender": [
+        22.0,
+        -212.0,
+        7.6496
+      ],
+      "gltf": {
+        "position": [
+          22.0,
+          7.6496,
+          212.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_书生",
+      "type": "hero",
+      "blender": [
+        -3.45,
+        -36.7,
+        -0.48
+      ],
+      "gltf": {
+        "position": [
+          -3.45,
+          -0.48,
+          36.7
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_巡卒乙",
+      "type": "guard",
+      "blender": [
+        3.9,
+        -39.5,
+        -0.4794
+      ],
+      "gltf": {
+        "position": [
+          3.9,
+          -0.4794,
+          39.5
+        ],
+        "rotationY": 0.0,
+        "scale": 1.02
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_巡卒甲",
+      "type": "guard",
+      "blender": [
+        -3.9,
+        -39.3,
+        -0.4794
+      ],
+      "gltf": {
+        "position": [
+          -3.9,
+          -0.4794,
+          39.3
+        ],
+        "rotationY": 0.0,
+        "scale": 1.02
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_布妇",
+      "type": "female",
+      "blender": [
+        -2.55,
+        -41.0,
+        -0.47
+      ],
+      "gltf": {
+        "position": [
+          -2.55,
+          -0.47,
+          41.0
+        ],
+        "rotationY": 0.0,
+        "scale": 0.96
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_游侠",
+      "type": "crowd",
+      "blender": [
+        -1.55,
+        -48.0,
+        -1.0298
+      ],
+      "gltf": {
+        "position": [
+          -1.55,
+          -1.0298,
+          48.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_脚夫",
+      "type": "laborer",
+      "blender": [
+        3.55,
+        -37.1,
+        -0.48
+      ],
+      "gltf": {
+        "position": [
+          3.55,
+          -0.48,
+          37.1
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_茶摊",
+      "type": "laborer",
+      "blender": [
+        -3.55,
+        -34.2,
+        -0.48
+      ],
+      "gltf": {
+        "position": [
+          -3.55,
+          -0.48,
+          34.2
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_行客",
+      "type": "elder",
+      "blender": [
+        1.1,
+        -45.0,
+        -1.03
+      ],
+      "gltf": {
+        "position": [
+          1.1,
+          -1.03,
+          45.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "市镇_货郎",
+      "type": "laborer",
+      "blender": [
+        3.55,
+        -42.75,
+        -0.5
+      ],
+      "gltf": {
+        "position": [
+          3.55,
+          -0.5,
+          42.75
+        ],
+        "rotationY": 0.0,
+        "scale": 0.98
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "西竹_寺僧",
+      "type": "elder",
+      "blender": [
+        -143.0,
+        -14.0,
+        22.4822
+      ],
+      "gltf": {
+        "position": [
+          -143.0,
+          22.4822,
+          14.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    },
+    {
+      "name": "西竹_隐士",
+      "type": "female",
+      "blender": [
+        -118.0,
+        -54.0,
+        25.1252
+      ],
+      "gltf": {
+        "position": [
+          -118.0,
+          25.1252,
+          54.0
+        ],
+        "rotationY": 0.0,
+        "scale": 1.0
+      },
+      "defaultAnimation": "Idle"
+    }
+  ]
+}

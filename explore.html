@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>雁门关 · 步行探索 | 斗破苍穹 · 乌坦城外</title>
+<style>
+  :root{--ink:#f0ead8;--gold:#d8b678;--line:rgba(230,218,188,.2)}
+  *{box-sizing:border-box}
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#11161a;color:var(--ink);font-family:"Microsoft YaHei","PingFang SC","Noto Sans CJK SC",Arial,sans-serif}
+  #scene{position:fixed;inset:0;width:100%;height:100%;display:block}
+  .vignette{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 50% 46%,transparent 42%,rgba(7,11,14,.5) 115%)}
+  .hud{position:fixed;left:26px;top:24px;padding:16px 20px 14px;background:linear-gradient(135deg,rgba(19,23,22,.82),rgba(17,21,20,.42));border:1px solid var(--line);backdrop-filter:blur(10px);pointer-events:none;border-radius:2px}
+  .eyebrow{font-size:9px;letter-spacing:3px;color:var(--gold);display:flex;align-items:center;gap:9px}
+  .eyebrow:before{content:"";width:20px;height:1px;background:var(--gold)}
+  .hud h1{font-family:"STSong","SimSun",serif;font-weight:500;font-size:27px;letter-spacing:7px;margin:8px 0 5px}
+  .hud p{margin:0;font-size:10px;color:#b9b6a6;letter-spacing:1.6px}
+  .stats{display:flex;gap:16px;margin-top:11px;padding-top:9px;border-top:1px solid var(--line);font-size:9px;color:#9ea89b;letter-spacing:1px}
+  .stats b{color:#e9dfc2;font-weight:500}
+  .keys{position:fixed;left:26px;bottom:22px;font-size:10px;line-height:2;color:rgba(235,235,216,.72);text-shadow:0 1px 8px #000;letter-spacing:.5px;pointer-events:none}
+  .keys span{display:inline-block;min-width:22px;padding:1px 5px;margin-right:5px;border:1px solid rgba(235,225,198,.35);border-radius:2px;text-align:center;color:#efe3c4;font-size:9px}
+  .topright{position:fixed;right:26px;top:24px;text-align:right;font-size:10px;color:rgba(235,235,216,.7);line-height:1.9;text-shadow:0 1px 8px #000;pointer-events:none}
+  .topright b{color:var(--gold);font-weight:500}
+  #worldBridge{position:fixed;left:50%;top:22px;transform:translateX(-50%);z-index:15;min-width:330px;padding:9px 18px 8px;background:linear-gradient(135deg,rgba(19,23,22,.86),rgba(17,21,20,.42));border:1px solid rgba(216,182,120,.26);backdrop-filter:blur(10px);text-align:center;pointer-events:none;border-radius:2px;box-shadow:0 8px 28px rgba(0,0,0,.24)}
+  #worldBridge .wr-route{font-size:10px;letter-spacing:2px;color:#e8ddc1;white-space:nowrap}
+  #worldBridge .wr-route i{display:inline-block;margin:0 10px;color:var(--gold);font-style:normal;letter-spacing:0}
+  #worldBridge .wr-here{color:#d8b678}
+  #worldBridge .wr-hero{margin-top:5px;font-size:9px;letter-spacing:1.2px;color:#97a095}
+  #worldBridge .wr-hero b{color:#e9dfc2;font-weight:500;letter-spacing:2px}
+  #worldBridge .wr-hero span+span:before{content:"·";margin:0 6px;color:#687167}
+  #worldBridge .wr-hero em{margin-left:10px;padding-left:10px;border-left:1px solid rgba(216,182,120,.2);color:#d8b678;font-style:normal}
+  #backWutan{margin-top:10px;width:100%;padding:10px 20px;background:rgba(216,182,120,.06);border:1px solid rgba(216,182,120,.28);color:#bfae8c;font-size:11px;letter-spacing:3px;cursor:pointer;border-radius:1px;transition:.25s;font-family:inherit}
+  #backWutan:hover{background:rgba(216,182,120,.16);color:#f3e3bd}
+  @media(max-width:760px){#worldBridge{top:12px;min-width:0;width:calc(100vw - 24px);padding:7px 10px}#worldBridge .wr-route{font-size:9px;letter-spacing:1px}#worldBridge .wr-hero{font-size:8px}#worldBridge .wr-hero em{display:none}}
+  #questTrack{position:fixed;left:26px;top:150px;z-index:16;width:min(238px,32vw);padding:9px 12px 10px;border:1px solid rgba(216,182,120,.4);border-radius:3px;background:linear-gradient(165deg,rgba(28,22,18,.94),rgba(14,12,20,.92));box-shadow:0 8px 26px rgba(0,0,0,.42);display:none;pointer-events:none;color:#d9c9a5;letter-spacing:.4px;backdrop-filter:blur(10px)}
+  #questTrack.on{display:block}
+  #questTrack.ready{border-color:rgba(255,214,100,.82);box-shadow:0 8px 30px rgba(255,196,80,.12)}
+  #questTrack .qt-top{display:flex;align-items:center;gap:6px;font-size:11px;color:#f0d488;letter-spacing:1px}
+  #questTrack .qt-state{margin-left:auto;font-size:9px;color:#9f8b62;letter-spacing:1px}
+  #questTrack.ready .qt-state{color:#ffe07a}
+  #questTrack .qt-title{margin-top:5px;font-size:12px;font-weight:700;color:#f5e9cf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #questTrack .qt-bar{height:4px;margin:6px 0 5px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden}
+  #questTrack .qt-bar>i{display:block;height:100%;width:0%;border-radius:3px;background:linear-gradient(90deg,#8f6a2e,#ffd76a);transition:width .35s}
+  #questTrack .qt-obj{font-size:10px;color:#a39478;display:flex;justify-content:space-between;gap:8px}
+  #questTrack .qt-obj b{color:#f0d488;font-weight:600}
+  @media(max-width:760px){#questTrack{left:12px;top:116px;width:min(210px,56vw);padding:7px 9px 8px}#questTrack .qt-title{font-size:11px}#questTrack .qt-obj{font-size:9px}}
+  #toast{position:fixed;left:50%;top:88px;transform:translateX(-50%) translateY(-8px);z-index:24;padding:10px 22px;background:linear-gradient(135deg,rgba(31,25,20,.94),rgba(16,14,17,.9));border:1px solid rgba(216,182,120,.5);box-shadow:0 10px 32px rgba(0,0,0,.42);font-size:12px;letter-spacing:1.5px;color:#f0dfbb;opacity:0;visibility:hidden;transition:opacity .2s,transform .2s,visibility .2s;pointer-events:none;white-space:nowrap;border-radius:2px}
+  #toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  @media(max-width:760px){#toast{top:66px;font-size:10px;padding:8px 12px;max-width:90vw;white-space:normal;text-align:center}}
+  .crosshair{position:fixed;left:50%;top:50%;width:5px;height:5px;margin:-2.5px 0 0 -2.5px;border-radius:50%;background:rgba(245,235,205,.7);box-shadow:0 0 8px rgba(0,0,0,.7);pointer-events:none}
+  .crosshair:before,.crosshair:after{content:"";position:absolute;background:rgba(245,235,205,.35)}
+  .crosshair:before{left:-9px;top:2px;width:7px;height:1px}
+  .crosshair:after{left:7px;top:2px;width:7px;height:1px}
+  #interactPrompt{position:fixed;left:50%;bottom:92px;transform:translateX(-50%) translateY(8px);display:flex;align-items:center;gap:10px;padding:9px 15px 9px 10px;background:linear-gradient(135deg,rgba(20,25,23,.9),rgba(28,32,28,.65));border:1px solid rgba(216,182,120,.42);box-shadow:0 8px 26px rgba(0,0,0,.35);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s,transform .18s,visibility .18s;z-index:18}
+  #interactPrompt.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  #interactPrompt .fk{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1px solid rgba(235,225,198,.48);color:#f3e3bd;font-size:11px;letter-spacing:1px}
+  #interactPrompt .who{font-size:11px;letter-spacing:1.6px;color:#e8ddc1}
+  #interactPrompt .verb{font-size:9px;letter-spacing:1.8px;color:#9ca89a}
+  #dialogue{position:fixed;left:50%;bottom:56px;transform:translateX(-50%) translateY(10px);width:min(740px,92vw);padding:18px 24px 15px;background:linear-gradient(145deg,rgba(20,25,23,.96),rgba(14,18,17,.9));border:1px solid rgba(216,182,120,.42);box-shadow:0 24px 80px rgba(0,0,0,.55);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,transform .2s,visibility .2s;z-index:22}
+  #dialogue:before{content:"";position:absolute;left:8px;right:8px;top:6px;bottom:6px;border:1px solid rgba(216,182,120,.09);pointer-events:none}
+  #dialogue.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
+  .dlg-head{display:flex;align-items:center;gap:12px;padding-bottom:9px;border-bottom:1px solid rgba(216,182,120,.18);font-size:11px;letter-spacing:2px}
+  .dlg-name{font-family:"STSong","SimSun",serif;font-size:18px;color:#f1e5c8;letter-spacing:3px}
+  .dlg-role{font-size:9px;color:#a7b1a3;letter-spacing:1.4px}
+  .dlg-count{margin-left:auto;font-size:9px;color:#8d998c;letter-spacing:1px}
+  .dlg-text{min-height:62px;padding:13px 2px 6px;font-size:14px;line-height:1.9;color:#e7e0cd;letter-spacing:1px}
+  .dlg-foot{display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid rgba(216,182,120,.12);font-size:9px;color:#9ca89a;letter-spacing:1.4px}
+  .dlg-foot b{color:#d8b678;font-weight:500}
+  @media(max-width:760px){#interactPrompt{bottom:72px}#dialogue{bottom:30px;padding:14px 16px 12px}.dlg-text{font-size:13px;min-height:54px}.dlg-name{font-size:16px}}
+  #overlay{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 44%,rgba(40,49,50,.9),rgba(10,14,16,.97) 78%);transition:opacity .4s,visibility .4s}
+  #overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+  .card{width:min(560px,86vw);padding:38px 42px 32px;background:linear-gradient(140deg,rgba(24,29,27,.92),rgba(16,20,19,.75));border:1px solid rgba(216,182,120,.3);box-shadow:0 30px 90px rgba(0,0,0,.55);text-align:center;position:relative}
+  .card:before{content:"";position:absolute;left:12px;right:12px;top:8px;bottom:8px;border:1px solid rgba(216,182,120,.1);pointer-events:none}
+  .card .eyebrow{justify-content:center}
+  .card h2{font-family:"STSong","SimSun",serif;font-weight:500;font-size:40px;letter-spacing:12px;margin:14px 0 8px}
+  .card .sub{font-size:11px;letter-spacing:2px;color:#b9b6a6;margin:0 0 24px}
+  #loadmsg{font-size:11px;color:#a9b2a5;letter-spacing:1px;min-height:16px}
+  .bar{width:260px;height:2px;background:rgba(255,255,255,.1);margin:16px auto 0;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--gold);transition:width .2s}
+  #enter{margin-top:24px;padding:12px 34px;background:rgba(216,182,120,.12);border:1px solid rgba(216,182,120,.55);color:#f3e3bd;font-size:13px;letter-spacing:4px;cursor:pointer;border-radius:1px;transition:.25s;font-family:inherit}
+  #enter:hover:not(:disabled){background:rgba(216,182,120,.26);color:#fff8e6}
+  #enter:disabled{opacity:.35;cursor:wait}
+  .note{margin-top:18px;font-size:9px;color:#727d75;letter-spacing:1px;line-height:1.8}
+  @media(max-width:760px){.hud{left:12px;top:12px;padding:11px 14px}.hud h1{font-size:20px}.keys,.topright{display:none}.card{padding:28px 20px}h2{font-size:30px!important}}
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div class="vignette"></div>
+<div class="hud">
+  <div class="eyebrow">DOUPO CANGQIONG · WUTAN OUTSKIRTS</div>
+  <h1>雁门关</h1>
+  <p>乌坦城外 · 魔兽山脉边缘</p>
+  <div class="stats"><span>碰撞 <b id="stat-col">--</b></span><span>NPC <b id="stat-npc">--</b></span><span>FPS <b id="stat-fps">--</b></span></div>
+</div>
+<div id="questTrack">
+  <div class="qt-top"><span>🗡️</span><span>雁门试刃</span><span class="qt-state" id="qt-state">进行中</span></div>
+  <div class="qt-title" id="qt-title">—</div>
+  <div class="qt-bar"><i id="qt-bar"></i></div>
+  <div class="qt-obj"><span id="qt-obj">—</span><b id="qt-reward">—</b></div>
+</div>
+<div id="worldBridge">
+  <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
+  <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><em>B 回城</em></div>
+</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift</b> 疾走<br><b>Space</b> 跳跃 · <b>F</b> 交谈<br><b>鼠标</b> 转向 · <b>C</b> 碰撞层<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>Esc</b> 暂停</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift</span> 疾走　<span>Space</span> 跳　<span>F</span> 交谈<br><span>鼠标</span> 转向　<span>C</span> 显示碰撞层　<span>R</span> 回到起点　<span>B</span> 回乌坦城　<span>Esc</span> 暂停</div>
+<div id="toast"></div>
+<div class="crosshair"></div>
+<div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
+<div id="dialogue">
+  <div class="dlg-head"><span class="dlg-name" id="dlgName">—</span><span class="dlg-role" id="dlgRole"></span><span class="dlg-count" id="dlgCount"></span></div>
+  <div class="dlg-text" id="dlgText"></div>
+  <div class="dlg-foot"><span><b>Space / F</b> 继续</span><span><b>Esc</b> 离开</span></div>
+</div>
+
+<div id="overlay">
+  <div class="card">
+    <div class="eyebrow">DOUPO CANGQIONG · OUTSIDE WUTAN</div>
+    <h2>雁门关</h2>
+    <p class="sub">乌坦城外的世界 · 关山市镇 · 魔兽山脉边缘</p>
+    <div id="loadmsg">正在读取人物清单</div>
+    <div class="bar"><i id="bar"></i></div>
+    <button id="enter" disabled>载入中</button>
+    <button id="backWutan">返回乌坦城</button>
+    <div class="note">从乌坦城南门出城，沿官道前行十八里，便到关山市镇。<br>60 MB Draco 场景 + 20 MB 碰撞层 + 玩家角色 + 六套骨骼 NPC<br>建议通过本地 HTTP 服务打开</div>
+  </div>
+</div>
+
+<script type="importmap">
+{"imports":{"three":"./viewer/three.module.js","three/addons/":"./viewer/addons/"}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { Octree } from 'three/addons/math/Octree.js';
+import { Capsule } from 'three/addons/math/Capsule.js';
+import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.0));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.18;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// 太阳与场景全静态，阴影贴图只需生成一次；否则每帧都要把整座城重画进阴影图里。
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.18;
+scene.background = new THREE.Color(0xa4b2bc);
+scene.fog = new THREE.Fog(0xa4b2bc, 160, 1400);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth/innerHeight, 0.05, 3000);
+camera.rotation.order = 'YXZ';
+camera.rotation.set(-0.04, 0, 0);
+
+const hemi = new THREE.HemisphereLight(0xcfdbe8, 0x55503f, 0.7);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffd9b0, 3.0);
+sun.position.set(-36, 58, 44);
+sun.castShadow = true;
+sun.shadow.mapSize.set(512, 512);
+sun.shadow.camera.left = -90; sun.shadow.camera.right = 90;
+sun.shadow.camera.top = 90; sun.shadow.camera.bottom = -90;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
+sun.shadow.bias = -0.0006;
+sun.shadow.normalBias = 0.03;
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xfff0dd, 0.55);
+fill.position.set(4, 12, 46);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0x9fb8d8, 0.8);
+rim.position.set(25, 18, -30);
+scene.add(rim);
+scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+
+const controls = new PointerLockControls(camera, canvas);
+controls.pointerSpeed = 1.05;
+
+const loader = new GLTFLoader();
+const dracoLoader = new DRACOLoader();
+// deploy/character.glb 是 Draco 压缩版，9.5MB；原版 151MB 只在解码器缺失时兜底。
+dracoLoader.setDecoderPath('./viewer/draco/');
+loader.setDRACOLoader(dracoLoader);
+const overlay = document.getElementById('overlay');
+const enterBtn = document.getElementById('enter');
+const loadmsg = document.getElementById('loadmsg');
+const bar = document.getElementById('bar');
+const statCol = document.getElementById('stat-col');
+const statNpc = document.getElementById('stat-npc');
+const statFps = document.getElementById('stat-fps');
+const interactPrompt = document.getElementById('interactPrompt');
+const interactWho = document.getElementById('interactWho');
+const dialogueEl = document.getElementById('dialogue');
+const dlgName = document.getElementById('dlgName');
+const dlgRole = document.getElementById('dlgRole');
+const dlgCount = document.getElementById('dlgCount');
+const dlgText = document.getElementById('dlgText');
+const backWutanBtn = document.getElementById('backWutan');
+const heroNameEl = document.getElementById('heroName');
+const heroRealmEl = document.getElementById('heroRealm');
+const heroGoldEl = document.getElementById('heroGold');
+const questTrackEl = document.getElementById('questTrack');
+const qtStateEl = document.getElementById('qt-state');
+const qtTitleEl = document.getElementById('qt-title');
+const qtObjEl = document.getElementById('qt-obj');
+const qtRewardEl = document.getElementById('qt-reward');
+const qtBarEl = document.getElementById('qt-bar');
+const interactVerb = document.getElementById('interactVerb');
+const toastEl = document.getElementById('toast');
+let toastTimer = 0;
+function showToast(message, ms = 2600){
+  if(!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), ms);
+}
+const FROM_WUTAN = new URLSearchParams(location.search).get('from') === 'wutan';
+
+// 两块地图共用同一份斗破存档：乌坦城负责修炼/战斗，这里负责关外任务与回城落点。
+const SAVE_KEY = 'dpcq_save_v4';
+const CAMP_POS = {x:31.5, z:57.4};
+const WUTAN_RETURN = {x:0, z:64};
+const REALM_NAMES = ['斗之气','斗者','斗师','大斗师','斗灵','斗王','斗皇','斗宗','斗尊','斗圣','斗帝'];
+const STAR_NAMES = ['一','二','三','四','五','六','七','八','九'];
+
+function readWutanSave(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    const saved = JSON.parse(raw);
+    return (saved && saved.p) ? saved : null;
+  }catch(err){ return null; }
+}
+
+function ensureYanmenQuest(save){
+  if(!save) return {stage:0, found:false, crateX:CAMP_POS.x, crateZ:CAMP_POS.z};
+  if(!save.p) save.p = {};
+  if(!save.p.yanmenQuest) save.p.yanmenQuest = {stage:0, found:false, crateX:CAMP_POS.x, crateZ:CAMP_POS.z};
+  const q = save.p.yanmenQuest;
+  if(!Number.isFinite(q.crateX)) q.crateX = CAMP_POS.x;
+  if(!Number.isFinite(q.crateZ)) q.crateZ = CAMP_POS.z;
+  return q;
+}
+
+function getYanmenQuest(){ return ensureYanmenQuest(readWutanSave()); }
+
+function writeWutanSave(save){
+  try{
+    save.ts = Date.now();
+    localStorage.setItem(SAVE_KEY, JSON.stringify(save));
+  }catch(err){}
+}
+
+function syncWutanHud(){
+  const saved = readWutanSave();
+  let p = (saved && saved.p) ? saved.p : {name:'萧炎',ri:0,si:0,gold:0};
+  const realm = p.ri === 10 ? '斗帝' : (REALM_NAMES[p.ri] || REALM_NAMES[0]) + '·' + (STAR_NAMES[p.si] || STAR_NAMES[0]) + '星';
+  heroNameEl.textContent = p.name || '萧炎';
+  heroRealmEl.textContent = realm;
+  heroGoldEl.textContent = (p.gold || 0) + ' 金';
+}
+syncWutanHud();
+
+function updateQuestTracker(){
+  const q = getYanmenQuest();
+  if(!q || q.stage <= 0 || q.stage >= 4){
+    questTrackEl.classList.remove('on','ready');
+    return;
+  }
+  let title = '', obj = '', reward = '180 金 · 600 经验', pct = 0;
+  if(q.stage === 1){ title = '清剿劫道山贼'; obj = '关外山道 · 山贼营地'; pct = 0; }
+  else if(q.stage === 2){ title = '取回被劫货箱'; obj = '山贼营地 · 拾取货箱'; pct = 55; }
+  else { title = '回城向沈砚复命'; obj = '与雁门剑客·沈砚交谈'; pct = 100; }
+  const key = q.stage + '|' + title;
+  if(questTrackEl.dataset.k !== key){
+    questTrackEl.dataset.k = key;
+    qtTitleEl.textContent = title;
+    qtObjEl.textContent = obj;
+    qtRewardEl.textContent = reward;
+    qtStateEl.textContent = q.stage === 3 ? '可交付' : '进行中';
+    qtBarEl.style.width = pct + '%';
+  }
+  questTrackEl.classList.add('on');
+  questTrackEl.classList.toggle('ready', q.stage === 3);
+}
+
+function updateYanmenQuest(mutator){
+  const save = readWutanSave();
+  if(!save) return null;
+  const q = ensureYanmenQuest(save);
+  mutator(q, save);
+  writeWutanSave(save);
+  syncWutanHud();
+  updateQuestTracker();
+  updateQuestWorld();
+  refreshQuestTargets();
+  return q;
+}
+
+function returnToWutan(){
+  if(dialogue.active) endDialogue();
+  const save = readWutanSave();
+  if(save){
+    // 回城落点固定在南门内侧，避免从关外回来时落在城门外或旧存档位置。
+    save.x = WUTAN_RETURN.x;
+    save.z = WUTAN_RETURN.z;
+    save.y = 0;
+    save.lastArea = 'wutan';
+    writeWutanSave(save);
+  }
+  try{document.exitPointerLock?.()}catch(err){}
+  location.href = 'index.html?from=yanmen';
+}
+backWutanBtn.addEventListener('click', returnToWutan);
+updateQuestTracker();
+
+let manifest = null;
+let dialogueData = {npcs:{}, fallbacks:{default:{role:'关山路人', lines:['客官，关山风大，路上慢些。']}}};
+let worldOctree = null;
+let collisionGroup = null;
+let collisionTris = 0;
+let model = null;
+let npcRoot = null;
+let playerVisual = null;
+let playerMixer = null;
+let playerActions = {};
+let currentPlayerAction = null;
+let currentPlayerActionName = '';
+let playerHorizSpeed = 0;
+let smoothedHorizSpeed = 0;
+const mixers = [];
+const npcRecords = [];
+let npcLoaded = 0;
+let interactionCandidate = null;
+let interactionCooldown = 0;
+let questCamp = null;
+let questBandit = null;
+let questBanditCollider = null;
+let questCrate = null;
+let questCrateCollider = null;
+let questBeacon = null;
+let questCandidate = null;
+const questTargets = [];
+const campColliders = [];
+const dialogue = {active:false, npc:null, lines:[], lineIndex:0, savedRotation:new THREE.Euler(), cameraReady:false};
+
+const COL_MAT = new THREE.MeshBasicMaterial({color:0x5bff9d, wireframe:true, transparent:true, opacity:0.45, depthWrite:false});
+const debugMat = COL_MAT;
+
+function loadGLTF(url, onProgress){
+  return new Promise((resolve, reject)=>{
+    loader.load(url, resolve, onProgress, reject);
+  });
+}
+
+function markStaticNpcs(root){
+  const names = new Set(manifest.npcs.map(n=>n.name));
+  const isNpc = (o)=>{
+    let p = o;
+    while(p){
+      const base = (p.name || '').replace(/\.\d+$/, '');
+      if(names.has(base)) return true;
+      p = p.parent;
+    }
+    return false;
+  };
+  root.traverse(o=>{
+    if(isNpc(o)){
+      o.visible = false;
+      o.userData.staticNpc = true;
+    }
+  });
+}
+
+function collapseInstances(root){
+  root.updateMatrixWorld(true);
+  // 按 120m 网格分块合并：整片森林合成一个大 InstancedMesh 时，包围球覆盖整张地图，
+  // 视锥剔除永远命中，等于 5700 万面全画。分块后视野外的块会被直接剔除。
+  const CELL = 120;
+  const wpos = new THREE.Vector3();
+  const groups = new Map();
+  root.traverse(o=>{
+    if(!o.isMesh || o.isInstancedMesh || o.isSkinnedMesh) return;
+    if(o.userData.staticNpc) return;
+    if(Array.isArray(o.material)) return;
+    if(o.children && o.children.length) return;
+    o.getWorldPosition(wpos);
+    const cx = Math.floor(wpos.x / CELL), cz = Math.floor(wpos.z / CELL);
+    const key = o.geometry.uuid + '|' + (o.material.name || o.material.uuid) + '|' + cx + '|' + cz;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(o);
+  });
+  const invRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  const tmp = new THREE.Matrix4();
+  let collapsed = 0;
+  groups.forEach(list=>{
+    if(list.length < 2) return;
+    const im = new THREE.InstancedMesh(list[0].geometry, list[0].material, list.length);
+    im.name = 'instanced_' + (list[0].name || 'mesh');
+    const isVeg = /树|竹|草|叶|灌|蕨|花|苔|芦苇|枝|冠|藤/.test(im.name);
+    im.castShadow = !isVeg;
+    im.receiveShadow = true;
+    im.frustumCulled = true;
+    list.forEach((m,i)=>{
+      tmp.copy(invRoot).multiply(m.matrixWorld);
+      im.setMatrixAt(i, tmp);
+      if(m.parent) m.parent.remove(m);
+    });
+    im.instanceMatrix.needsUpdate = true;
+    im.computeBoundingSphere();
+    root.add(im);
+    collapsed += list.length;
+  });
+  return collapsed;
+}
+
+// 顶点聚类减面：把顶点按空间网格合并，删掉退化三角形。
+// 松树苗的枝条层单株 4593 面、视野内三千多株，是帧率主瓶颈；
+// 按 3.5cm 网格合并后约保留 25%，轮廓不变、细枝略粗。
+function clusterSimplify(src, cell){
+  const pos = src.attributes.position, idx = src.index, uv = src.attributes.uv || null;
+  const count = pos.count, mapArr = new Int32Array(count).fill(-1);
+  const newPos = [], newUv = [], outIdx = [], keyTo = new Map();
+  const remap = (i)=>{
+    if(mapArr[i] !== -1) return mapArr[i];
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const k = Math.round(x/cell) + ',' + Math.round(y/cell) + ',' + Math.round(z/cell);
+    let ni = keyTo.get(k);
+    if(ni === undefined){
+      ni = newPos.length/3;
+      keyTo.set(k, ni);
+      newPos.push(x, y, z);
+      if(uv) newUv.push(uv.getX(i), uv.getY(i));
+    }
+    mapArr[i] = ni;
+    return ni;
+  };
+  const triCount = idx ? idx.array.length/3 : count/3;
+  for(let t=0;t<triCount;t++){
+    const a = idx ? idx.getX(t*3) : t*3, b = idx ? idx.getX(t*3+1) : t*3+1, c = idx ? idx.getX(t*3+2) : t*3+2;
+    const ia = remap(a), ib = remap(b), ic = remap(c);
+    if(ia === ib || ib === ic || ia === ic) continue;
+    outIdx.push(ia, ib, ic);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(newPos, 3));
+  if(uv) geo.setAttribute('uv', new THREE.Float32BufferAttribute(newUv, 2));
+  geo.setIndex(outIdx);
+  geo.computeVertexNormals();
+  return { geo, before: triCount, after: outIdx.length/3 };
+}
+
+const DECIM_CELL = (()=>{
+  const q = new URLSearchParams(location.search).get('veg');
+  if(q === 'high') return 0.022;   // 画质优先
+  if(q === 'low') return 0.055;    // 帧率优先
+  return 0.035;                     // 默认平衡
+})();
+
+function decimateVegetation(root){
+  const cache = new Map();
+  const report = [];
+  root.traverse(o=>{
+    if(!o.isMesh) return;
+    const mat = (o.material && !Array.isArray(o.material) && o.material.name) || '';
+    if(!/twig|needle|pineneedle/i.test(mat)) return;
+    const key = o.geometry.uuid;
+    if(!cache.has(key)){
+      const r = clusterSimplify(o.geometry, DECIM_CELL);
+      cache.set(key, r.geo);
+      report.push({ mat, before: r.before, after: r.after });
+    }
+    o.geometry = cache.get(key);
+  });
+  if(report.length) console.table(report);
+  return report.reduce((a,r)=>a + (r.before - r.after), 0);
+}
+
+function installScene(root){
+  console.time('install-markNpc');
+  markStaticNpcs(root);
+  console.timeEnd('install-markNpc');
+  console.time('install-decimate');
+  const savedTris = decimateVegetation(root);
+  console.timeEnd('install-decimate');
+  if(savedTris) console.log('vegetation decimation removed tris:', savedTris);
+  console.time('install-material');
+  let meshCount = 0;
+  root.traverse(o=>{
+    if(o.isMesh){
+      meshCount++;
+      o.castShadow = true; o.receiveShadow = true;
+      if(o.material){
+        (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>{
+          if(m.map) m.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        });
+      }
+    }
+  });
+  console.timeEnd('install-material');
+  console.log('mesh count:', meshCount);
+  console.time('install-add');
+  scene.add(root);
+  console.timeEnd('install-add');
+  model = root;
+  console.time('install-collapse');
+  const collapsed = collapseInstances(root);
+  console.timeEnd('install-collapse');
+  renderer.shadowMap.needsUpdate = true;
+  if(collapsed) console.log('instanced meshes collapsed:', collapsed);
+  let tris = 0;
+  root.traverse(o=>{
+    if(o.isMesh && o.geometry){
+      const g = o.geometry;
+      const inst = o.isInstancedMesh ? o.count : 1;
+      tris += inst * (g.index ? g.index.count/3 : (g.attributes.position ? g.attributes.position.count/3 : 0));
+    }
+  });
+  window.__sceneTris = Math.round(tris);
+}
+
+function buildCollision(root){
+  collisionGroup = new THREE.Group();
+  collisionGroup.name = 'collision-proxy';
+  root.traverse(o=>{
+    if(o.isMesh){
+      o.material = COL_MAT;
+      o.castShadow = false;
+      o.receiveShadow = false;
+      if(o.geometry) collisionTris += (o.geometry.index ? o.geometry.index.count/3 : (o.geometry.attributes.position?.count/3 || 0));
+    }
+  });
+  collisionGroup.add(root);
+  collisionGroup.visible = false;
+  scene.add(collisionGroup);
+}
+
+function addNpcBlockers(){
+  for(const npc of manifest.npcs){
+    const h = manifest.characters[npc.type].height * npc.gltf.scale;
+    const p = npc.gltf.position;
+    const geo = new THREE.CylinderGeometry(0.30, 0.30, h, 10, 1, false);
+    geo.translate(p[0], p[1] + h/2, p[2]);
+    const blocker = new THREE.Mesh(geo, COL_MAT);
+    blocker.name = 'npc-blocker';
+    blocker.userData.blocker = true;
+    collisionGroup.add(blocker);
+  }
+  statCol.textContent = (collisionTris/1000).toFixed(0) + 'K';
+}
+
+function buildOctree(){
+  console.time('octree');
+  worldOctree = new Octree();
+  worldOctree.fromGraphNode(collisionGroup);
+  console.timeEnd('octree');
+}
+
+// ── 关外任务：雁门试刃（轻量版） ──────────────────────────
+// 不新建一套战斗系统：山贼营地用 F 驱散，货箱用 F 拾取，
+// 任务阶段仍写回 index.html 使用的 dpcq_save_v4。
+function groundAt(x, z, fallback = 0){
+  if(!worldOctree) return fallback;
+  const ray = new THREE.Ray(new THREE.Vector3(x, 80, z), DOWN);
+  const hit = worldOctree.rayIntersect(ray);
+  return hit && hit.position ? hit.position.y : fallback;
+}
+
+function makeQuestLabel(text, color = '#f0d488', scale = 1){
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  ctx.font = 'bold 44px "Microsoft YaHei","PingFang SC",serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,.9)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = color;
+  ctx.fillText(text, 256, 66);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false, depthTest:false});
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(2.9 * scale, 0.72 * scale, 1);
+  sprite.renderOrder = 6;
+  return sprite;
+}
+
+let questFireLight = null;
+let questBanditLabel = null;
+
+function buildQuestCamp(){
+  if(questCamp) return questCamp;
+  const groundY = groundAt(CAMP_POS.x, CAMP_POS.z, 0);
+  const g = new THREE.Group();
+  g.name = 'quest-camp-yanmen';
+  g.position.set(CAMP_POS.x, groundY, CAMP_POS.z);
+
+  const cloth = new THREE.MeshStandardMaterial({color:0x3b2a25, roughness:.95, metalness:0});
+  const clothDark = new THREE.MeshStandardMaterial({color:0x241b19, roughness:.95, metalness:0});
+  const wood = new THREE.MeshStandardMaterial({color:0x5b3d25, roughness:.86, metalness:.04});
+  const stone = new THREE.MeshStandardMaterial({color:0x5b5750, roughness:.95, metalness:0});
+  const metal = new THREE.MeshStandardMaterial({color:0x3a3026, roughness:.55, metalness:.55});
+  const ember = new THREE.MeshBasicMaterial({color:0xff7a2e, transparent:true, opacity:.9, depthWrite:false});
+  const dirtMat = new THREE.MeshStandardMaterial({color:0x4d3c2e, roughness:1, metalness:0});
+
+  // 坡度上的营地：每一件道具都按各自落点的地面高度贴地，避免出现悬空帐篷。
+  function localGround(x, z){
+    return groundAt(CAMP_POS.x + x, CAMP_POS.z + z, groundY) - g.position.y;
+  }
+
+  for(const [x, z, r] of [[-1.8, .2, 1.55], [1.8, 1.6, 1.25], [.3, 3.1, 1.0], [-2.7, 2.5, .9]]){
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(r, 20), dirtMat);
+    patch.rotation.x = -Math.PI / 2;
+    patch.position.set(x, localGround(x, z) + .016, z);
+    g.add(patch);
+  }
+
+  function addTent(x, z, rot, s = 1){
+    const t = new THREE.Group();
+    t.position.set(x, localGround(x, z), z);
+    g.add(t);
+    campColliders.push({x: CAMP_POS.x + x, z: CAMP_POS.z + z, y: t.position.y + g.position.y, r: 1.45 * s, camp:true});
+    const tent = new THREE.Mesh(new THREE.ConeGeometry(1.55, 1.85, 4), cloth);
+    tent.position.y = .925 * s;
+    tent.rotation.y = rot;
+    tent.scale.setScalar(s);
+    tent.castShadow = false;
+    tent.receiveShadow = true;
+    t.add(tent);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(.92, 1.15, .03), clothDark);
+    door.position.set(0, .62 * s, 1.02 * s);
+    door.rotation.y = rot;
+    t.add(door);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.045, .055, 2.5, 6), wood);
+    pole.position.set(1.35 * s, 1.25 * s, .1);
+    t.add(pole);
+    const pennant = new THREE.Mesh(new THREE.PlaneGeometry(.95, .46), new THREE.MeshBasicMaterial({color:0x7c332b, side:THREE.DoubleSide}));
+    pennant.position.set(1.82 * s, 2.12 * s, .1);
+    t.add(pennant);
+  }
+  // 帐篷都放在营地的东、南侧，西北方向留给玩家从官道靠近的路口。
+  addTent(2.3, -.2, Math.PI / 4, .95);
+  addTent(-.45, 2.55, Math.PI / 4 + .25, .82);
+
+  // 火堆：石圈 + 木柴 + 火苗，给营地一点可读性。
+  const fx = -1.25, fz = .55;
+  const fireBase = new THREE.Mesh(new THREE.CylinderGeometry(.95, 1.1, .16, 12), stone);
+  fireBase.position.set(fx, localGround(fx, fz) + .08, fz);
+  g.add(fireBase);
+  campColliders.push({x: CAMP_POS.x + fx, z: CAMP_POS.z + fz, y: g.position.y + localGround(fx, fz), r: 1.0, camp:true});
+  for(let i = 0; i < 9; i++){
+    const a = i / 9 * Math.PI * 2;
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(.18 + (i % 2) * .07, 0), stone);
+    rock.position.set(fx + Math.cos(a) * .92, localGround(fx + Math.cos(a) * .92, fz + Math.sin(a) * .92) + .2, fz + Math.sin(a) * .92);
+    rock.rotation.set(i * .4, i * .7, i * .2);
+    g.add(rock);
+  }
+  for(let i = 0; i < 4; i++){
+    const log = new THREE.Mesh(new THREE.CylinderGeometry(.09, .12, 1.25, 7), wood);
+    log.position.set(fx, localGround(fx, fz) + .28, fz);
+    log.rotation.z = Math.PI / 2;
+    log.rotation.y = i * Math.PI / 4 + .2;
+    g.add(log);
+  }
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(.22, .8, 8), ember);
+  flame.position.set(fx, localGround(fx, fz) + .78, fz);
+  g.add(flame);
+  questFireLight = new THREE.PointLight(0xff8a3d, 1.7, 8, 2);
+  questFireLight.position.set(fx, localGround(fx, fz) + 1.0, fz);
+  g.add(questFireLight);
+
+  // 营地散落的木箱、酒坛和破车板。
+  for(const [x, z, s, ry] of [[2.9, 1.1, .82, .3], [3.4, .3, .66, -.45], [-1.5, 2.4, .55, .9]]){
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(.82 * s, .58 * s, .62 * s), wood);
+    crate.position.set(x, localGround(x, z) + .29 * s, z);
+    crate.rotation.y = ry;
+    g.add(crate);
+    for(const yy of [.12, .47]){
+      const band = new THREE.Mesh(new THREE.BoxGeometry(.86 * s, .055 * s, .66 * s), metal);
+      band.position.set(x, localGround(x, z) + yy * s, z);
+      band.rotation.y = ry;
+      g.add(band);
+    }
+  }
+  const cart = new THREE.Mesh(new THREE.BoxGeometry(1.35, .18, .72), wood);
+  cart.position.set(-3.1, localGround(-3.1, 1.3) + .38, 1.3);
+  cart.rotation.y = -.25;
+  g.add(cart);
+  for(const s of [-1, 1]){
+    const wheel = new THREE.Mesh(new THREE.CylinderGeometry(.32, .32, .12, 12), wood);
+    wheel.position.set(-3.1 + s * .58, localGround(-3.1 + s * .58, 1.3) + .35, 1.3);
+    wheel.rotation.z = Math.PI / 2;
+    g.add(wheel);
+  }
+
+  buildQuestBeacon();
+  scene.add(g);
+  questCamp = g;
+  buildQuestCrate();
+  updateQuestWorld();
+  return g;
+}
+
+function buildQuestCrate(){
+  if(questCrate) return questCrate;
+  const g = new THREE.Group();
+  const wood = new THREE.MeshStandardMaterial({color:0x6d4726, roughness:.86, metalness:.05});
+  const band = new THREE.MeshStandardMaterial({color:0x3a2a1b, roughness:.7, metalness:.25});
+  const box = new THREE.Mesh(new THREE.BoxGeometry(.82, .56, .58), wood);
+  box.position.y = .3;
+  g.add(box);
+  for(const yy of [.12, .48]){
+    const b = new THREE.Mesh(new THREE.BoxGeometry(.86, .055, .62), band);
+    b.position.y = yy;
+    g.add(b);
+  }
+  const lock = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .05), new THREE.MeshStandardMaterial({color:0xd9ad5c, metalness:.7, roughness:.3}));
+  lock.position.set(0, .34, .305);
+  g.add(lock);
+  const tag = makeQuestLabel('被劫货箱', '#f0d488');
+  tag.position.set(0, 1.15, 0);
+  g.add(tag);
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(.62, .86, 32),
+    new THREE.MeshBasicMaterial({color:0xffcf6a, transparent:true, opacity:.55, side:THREE.DoubleSide, depthWrite:false})
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = .03;
+  g.add(ring);
+  const cx = CAMP_POS.x + .9, cz = CAMP_POS.z + 1.1;
+  g.position.set(cx, groundAt(cx, cz, 0), cz);
+  g.visible = false;
+  scene.add(g);
+  questCrate = g;
+  questCrateCollider = {x:cx, z:cz, y:g.position.y, r:.55, enabled:false};
+  campColliders.push(questCrateCollider);
+  return g;
+}
+
+function buildQuestBandit(sources){
+  if(questBandit || !sources || !sources.crowd) return;
+  const src = sources.crowd;
+  const visual = skeletonClone(src.scene);
+  const x = CAMP_POS.x + .7, z = CAMP_POS.z + .2;
+  visual.position.set(x, groundAt(x, z, 0), z);
+  visual.rotation.y = Math.PI * 0.65;
+  visual.scale.setScalar(1.06);
+  visual.traverse(o=>{
+    if(o.isMesh){
+      o.castShadow = false;
+      o.receiveShadow = true;
+      o.frustumCulled = false;
+      if(o.material && o.material.map) o.material.map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    }
+  });
+  scene.add(visual);
+  const mixer = new THREE.AnimationMixer(visual);
+  const clip = THREE.AnimationClip.findByName(src.animations, 'Idle');
+  if(clip){
+    const action = mixer.clipAction(clip);
+    action.time = Math.random() * clip.duration;
+    action.play();
+  }
+  mixers.push(mixer);
+  questBandit = visual;
+  questBanditCollider = {x, z, y: visual.position.y, r: .32, enabled: false};
+  campColliders.push(questBanditCollider);
+  questBanditLabel = makeQuestLabel('劫道山贼', '#f1b06b', .86);
+  questBanditLabel.position.set(x, visual.position.y + 2.05, z);
+  scene.add(questBanditLabel);
+  updateQuestWorld();
+  refreshQuestTargets();
+}
+
+function updateQuestWorld(){
+  const q = getYanmenQuest();
+  const stage = q.stage;
+  for(const c of campColliders){
+    if(c.camp) c.enabled = stage >= 1;
+  }
+  if(questCamp) questCamp.visible = stage >= 1;
+  if(questBandit){
+    const active = stage === 1;
+    questBandit.visible = active;
+    if(questBanditCollider) questBanditCollider.enabled = active;
+    if(questBanditLabel) questBanditLabel.visible = active;
+  }
+  if(questCrate){
+    const active = stage === 2;
+    questCrate.visible = active;
+    if(active){
+      const cx = q.crateX || (CAMP_POS.x + .9);
+      const cz = q.crateZ || (CAMP_POS.z + 1.1);
+      questCrate.position.set(cx, groundAt(cx, cz, 0), cz);
+      if(questCrateCollider){
+        questCrateCollider.x = cx;
+        questCrateCollider.z = cz;
+        questCrateCollider.y = questCrate.position.y;
+        questCrateCollider.enabled = true;
+      }
+    } else if(questCrateCollider){
+      questCrateCollider.enabled = false;
+    }
+  }
+  if(questBeacon){
+    const active = stage === 1 || stage === 2;
+    questBeacon.visible = active;
+    if(active && questBandit && stage === 1){
+      questBeacon.position.set(questBandit.position.x, questBandit.position.y + 2.55, questBandit.position.z);
+    } else if(active && questCrate && stage === 2){
+      questBeacon.position.set(questCrate.position.x, questCrate.position.y + 1.55, questCrate.position.z);
+    }
+  }
+}
+
+function refreshQuestTargets(){
+  questTargets.length = 0;
+  const q = getYanmenQuest();
+  if(q.stage === 1 && questBandit && questBandit.visible){
+    questTargets.push({id:'quest-bandit', kind:'bandit', position:questBandit.position, range:2.9, height:1.7, label:'劫道山贼', verb:'击退', run:defeatQuestBandit});
+  }
+  if(q.stage === 2 && questCrate && questCrate.visible){
+    questTargets.push({id:'quest-crate', kind:'crate', position:questCrate.position, range:2.8, height:.9, label:'被劫货箱', verb:'拾取', run:pickupQuestCrate});
+  }
+}
+
+function defeatQuestBandit(){
+  const q = getYanmenQuest();
+  if(q.stage !== 1) return;
+  updateYanmenQuest((qq)=>{
+    qq.stage = 2;
+    qq.found = false;
+    qq.crateX = CAMP_POS.x + .9;
+    qq.crateZ = CAMP_POS.z + 1.1;
+  });
+  interactionCooldown = .35;
+  hideInteractionPrompt();
+  showToast('🗡️ 山贼已退，货箱就在营地旁', 3000);
+}
+
+function pickupQuestCrate(){
+  const q = getYanmenQuest();
+  if(q.stage !== 2) return;
+  updateYanmenQuest((qq)=>{
+    qq.stage = 3;
+    qq.found = true;
+  });
+  interactionCooldown = .35;
+  hideInteractionPrompt();
+  showToast('📦 已取回被劫货箱，按 B 回乌坦城交给沈砚', 3400);
+}
+
+function buildQuestBeacon(){
+  if(questBeacon) return;
+  questBeacon = new THREE.Mesh(
+    new THREE.OctahedronGeometry(.23, 0),
+    new THREE.MeshBasicMaterial({color:0xffcf6a, transparent:true, opacity:.9, depthWrite:false})
+  );
+  questBeacon.renderOrder = 5;
+  questBeacon.visible = false;
+  scene.add(questBeacon);
+}
+
+function loadNpcVisuals(){
+  const types = Object.keys(manifest.characters);
+  const sources = {};
+  Promise.all(types.map(async type=>{
+    const src = await loadGLTF('./' + manifest.characters[type].glb);
+    sources[type] = src;
+  })).then(()=>{
+    npcRoot = new THREE.Group();
+    npcRoot.name = 'animated-npcs';
+    scene.add(npcRoot);
+    for(const npc of manifest.npcs){
+      const src = sources[npc.type];
+      if(!src) continue;
+      const visual = skeletonClone(src.scene);
+      visual.position.set(...npc.gltf.position);
+      visual.rotation.y = npc.gltf.rotationY || 0;
+      visual.scale.setScalar(npc.gltf.scale || 1);
+      visual.traverse(o=>{
+        if(o.isMesh){
+          o.castShadow = false;
+          o.receiveShadow = true;
+          o.frustumCulled = false;
+          if(o.material && o.material.map) o.material.map.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+        }
+      });
+      npcRoot.add(visual);
+      const mixer = new THREE.AnimationMixer(visual);
+      const clip = THREE.AnimationClip.findByName(src.animations, npc.defaultAnimation || 'Idle');
+      if(clip){
+        const action = mixer.clipAction(clip);
+        action.time = Math.random() * clip.duration;
+        action.play();
+      }
+      mixer.timeScale = 0.92 + Math.random()*0.16;
+      mixers.push(mixer);
+      npcRecords.push({
+        data: npc,
+        visual,
+        mixer,
+        height: manifest.characters[npc.type].height * (npc.gltf.scale || 1)
+      });
+    }
+    npcLoaded = npcRecords.length;
+    statNpc.textContent = npcLoaded + '/' + manifest.npcs.length;
+    buildQuestBandit(sources);
+    updateQuestWorld();
+    refreshQuestTargets();
+    console.log('animated NPCs ready:', npcLoaded, 'mixers:', mixers.length);
+  }).catch(err=>{
+    console.error(err);
+    statNpc.textContent = '载入失败';
+  });
+}
+
+// 玩家角色：deploy/character.glb 是 9.5MB Draco 版；缺解码器时回退到原版 151MB。
+// 只保留 node_0 身体，Wuxia Sword 和 Icosphere 是散件/辅助球，必须隐藏。
+function setupPlayerCharacter(gltf){
+  const root = gltf.scene;
+  root.traverse(o=>{
+    if(o.name === 'Wuxia Sword' || o.name === 'Icosphere') o.visible = false;
+    if(o.isMesh){
+      o.castShadow = false;       // 阴影贴图是静态烘焙，角色移动不应每帧重画整城
+      o.receiveShadow = true;
+      o.frustumCulled = false;
+    }
+  });
+  const body = root.getObjectByName('node_0');
+  if(body){
+    const box = new THREE.Box3().setFromObject(body);
+    const size = box.getSize(new THREE.Vector3());
+    console.log('player body height:', size.y.toFixed(3), 'feet y:', box.min.y.toFixed(3));
+  }
+  playerVisual = new THREE.Group();
+  playerVisual.name = 'player-character';
+  playerVisual.add(root);
+
+  // 角色没有实时阴影，用一块淡黑影贴在地面，避免看起来悬空。
+  const blob = new THREE.Mesh(
+    new THREE.CircleGeometry(0.42, 24),
+    new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.30, depthWrite:false})
+  );
+  blob.name = 'player-shadow';
+  blob.rotation.x = -Math.PI / 2;
+  blob.position.y = 0.012;
+  blob.renderOrder = 2;
+  playerVisual.add(blob);
+
+  scene.add(playerVisual);
+  playerVisual.position.set(player.end.x, player.start.y - 0.35, player.end.z);
+  playerVisual.rotation.y = Math.PI;   // 相机初始朝 -Z，角色背对相机站在前方
+
+  playerMixer = new THREE.AnimationMixer(root);
+  for(const clip of gltf.animations){
+    playerActions[clip.name] = playerMixer.clipAction(clip);
+  }
+  if(playerActions.Idle){
+    currentPlayerAction = playerActions.Idle;
+    currentPlayerActionName = 'Idle';
+    currentPlayerAction.play();
+  }
+  console.log('player animations:', Object.keys(playerActions).join(','));
+}
+
+async function loadPlayerCharacter(){
+  setProgress(86, '载入玩家角色 9.5 MB');
+  try {
+    const gltf = await loadGLTF('./character.glb');
+    setupPlayerCharacter(gltf);
+  } catch(err){
+    console.warn('deploy/character.glb 载入失败，尝试原版 character.glb', err);
+    setProgress(86, '载入玩家角色 9.5 MB');
+    const gltf = await loadGLTF('./character.original.glb');
+    setupPlayerCharacter(gltf);
+  }
+}
+
+function setPlayerAction(name, fade = 0.18){
+  const next = playerActions[name];
+  if(!next || next === currentPlayerAction) return;
+  next.reset();
+  next.enabled = true;
+  next.setEffectiveTimeScale(1);
+  next.setEffectiveWeight(1);
+  if(name === 'Jump'){
+    next.setLoop(THREE.LoopOnce, 1);
+    next.clampWhenFinished = true;
+  } else {
+    next.setLoop(THREE.LoopRepeat, Infinity);
+    next.clampWhenFinished = false;
+  }
+  next.fadeIn(fade).play();
+  if(currentPlayerAction) currentPlayerAction.fadeOut(fade);
+  currentPlayerAction = next;
+  currentPlayerActionName = name;
+}
+
+function updatePlayerAnimation(dt){
+  if(!playerVisual || !playerMixer) return;
+  jumpAnimTimer = Math.max(0, jumpAnimTimer - dt);
+  // 世界碰撞修正会让瞬时速度在贴墙时来回跳；用 0.15 秒平滑避免 Walk/Idle 反复淡入淡出
+  smoothedHorizSpeed += (playerHorizSpeed - smoothedHorizSpeed) * (1 - Math.exp(-9 * dt));
+  const wasRunning = currentPlayerActionName === 'Run';
+  const wasWalking = currentPlayerActionName === 'Walk';
+  let desired = 'Idle';
+  if(jumpAnimTimer > 0) desired = 'Jump';
+  else if(smoothedHorizSpeed > (wasRunning ? 4.2 : 5.0)) desired = 'Run';
+  else if(smoothedHorizSpeed > (wasWalking ? 0.2 : 0.55)) desired = 'Walk';
+  setPlayerAction(desired);
+  playerMixer.update(dt);
+}
+
+let playerVisualY = null;
+let faceTargetYaw = Math.PI;
+
+function updatePlayerVisual(dt, immediate = false){
+  if(!playerVisual) return;
+  const targetY = player.start.y - 0.35;
+  if(immediate || playerVisualY === null) playerVisualY = targetY;
+  else playerVisualY += (targetY - playerVisualY) * (1 - Math.exp(-14 * dt));
+  playerVisual.position.set(player.end.x, playerVisualY, player.end.z);
+
+  let delta = (faceTargetYaw - playerVisual.rotation.y + Math.PI) % (Math.PI * 2);
+  if(delta < 0) delta += Math.PI * 2;
+  delta -= Math.PI;
+  playerVisual.rotation.y += delta * (1 - Math.exp(-12 * dt));
+}
+
+
+const player = new Capsule(new THREE.Vector3(0, -0.55, 43), new THREE.Vector3(0, 0.50, 43), 0.35);
+const spawn = new THREE.Vector3(0, -0.55, 43);
+const playerVelocity = new THREE.Vector3();
+let playerOnFloor = false;
+let jumpQueued = false;
+let jumpAnimTimer = 0;
+const UP = new THREE.Vector3(0, 1, 0);
+const tmpForward = new THREE.Vector3();
+const tmpRight = new THREE.Vector3();
+const tmpWish = new THREE.Vector3();
+const tmpDelta = new THREE.Vector3();
+const tmpNormal = new THREE.Vector3();
+const tmpStep = new THREE.Vector3();
+const tmpStepRayOrigin = new THREE.Vector3();
+const tmpStepRay = new THREE.Ray();
+const tmpCampPush = new THREE.Vector3();
+const DOWN = new THREE.Vector3(0, -1, 0);
+
+// 第三人称跟随：相机不再贴在胶囊顶部，也不叠加头部 bob。
+// 焦距点做指数平滑，0.5m 台阶的离散抬升不会直接打到画面上。
+const CAMERA_DISTANCE = 4.2;
+const CAMERA_FOCUS_HEIGHT = 1.35;
+const CAMERA_MIN_DISTANCE = 0.22;
+const CAMERA_COLLISION_SKIN = 0.18;
+const cameraFocus = new THREE.Vector3();
+const cameraFocusTarget = new THREE.Vector3();
+const cameraDir = new THREE.Vector3();
+const cameraDesired = new THREE.Vector3();
+const cameraRay = new THREE.Ray();
+const cameraRayDir = new THREE.Vector3();
+let cameraDistance = CAMERA_DISTANCE;
+let cameraInitialized = false;
+
+function getPlayerFocus(out){
+  // 胶囊底部是 start.y - radius，角色脚底就在这个高度。
+  const feet = player.start.y - 0.35;
+  return out.set(player.end.x, feet + CAMERA_FOCUS_HEIGHT, player.end.z);
+}
+
+function placeCamera(focus, dt = 0){
+  camera.getWorldDirection(cameraDir);
+  let targetDistance = CAMERA_DISTANCE;
+  if(worldOctree){
+    // 从角色焦点向相机位置打一条射线；撞到墙/柱子就把相机拉近，避免镜头穿模。
+    cameraRayDir.copy(cameraDir).multiplyScalar(-1);
+    cameraRay.set(focus, cameraRayDir);
+    const hit = worldOctree.rayIntersect(cameraRay);
+    if(hit && hit.distance < CAMERA_DISTANCE){
+      targetDistance = Math.max(CAMERA_MIN_DISTANCE, hit.distance - CAMERA_COLLISION_SKIN);
+    }
+  }
+  // 被遮挡时立刻拉近（慢一帧就会穿进墙），遮挡解除后再缓慢回到正常距离。
+  if(dt <= 0 || targetDistance < cameraDistance){
+    cameraDistance = targetDistance;
+  } else {
+    cameraDistance += (targetDistance - cameraDistance) * (1 - Math.exp(-10 * dt));
+  }
+  cameraDesired.copy(focus).addScaledVector(cameraDir, -cameraDistance);
+  // 仰视时相机可能钻到地下，兜底抬到脚底上方 0.35m。
+  const minY = player.start.y - 0.35 + 0.35;
+  if(cameraDesired.y < minY) cameraDesired.y = minY;
+  camera.position.copy(cameraDesired);
+}
+
+function syncCamera(immediate = true){
+  getPlayerFocus(cameraFocus);
+  cameraDistance = CAMERA_DISTANCE;
+  placeCamera(cameraFocus, 0);
+  cameraInitialized = true;
+}
+
+function updateCamera(dt){
+  if(dialogue.active){
+    updateDialogueCamera(dt);
+    return;
+  }
+  getPlayerFocus(cameraFocusTarget);
+  if(!cameraInitialized){
+    cameraFocus.copy(cameraFocusTarget);
+    cameraInitialized = true;
+  } else {
+    cameraFocus.lerp(cameraFocusTarget, 1 - Math.exp(-9 * dt));
+  }
+  placeCamera(cameraFocus, dt);
+}
+
+syncCamera();
+
+// ── NPC 交互 ─────────────────────────────────────────────
+// 距离 + 朝向 + 遮挡三条同时满足才出提示，避免隔着墙也能交谈。
+const DIALOGUE_RANGE = 2.35;
+const DIALOGUE_FACING_DOT = 0.28;
+const dialogueTune = {back:1.70, side:1.25, eye:1.56, lift:0.28};
+const dlgPlayerHead = new THREE.Vector3();
+const dlgNpcHead = new THREE.Vector3();
+const dlgDir = new THREE.Vector3();
+const dlgRight = new THREE.Vector3();
+const dlgCamTarget = new THREE.Vector3();
+const dlgRayOrigin = new THREE.Vector3();
+const dlgRayTarget = new THREE.Vector3();
+const dlgRay = new THREE.Ray();
+const dlgRayDir = new THREE.Vector3();
+
+const keys = {w:false,a:false,s:false,d:false,shift:false};
+
+function hideInteractionPrompt(){
+  interactionCandidate = null;
+  questCandidate = null;
+  interactPrompt.classList.remove('show');
+  interactVerb.textContent = '交谈';
+}
+
+function getDialogueEntry(record){
+  if(!record) return null;
+  const exact = dialogueData.npcs && dialogueData.npcs[record.data.name];
+  const fallback = (dialogueData.fallbacks && dialogueData.fallbacks[record.data.type]) ||
+    (dialogueData.fallbacks && dialogueData.fallbacks.default) ||
+    {role:'关山路人', lines:['客官，关山风大，路上慢些。']};
+  const entry = exact || fallback;
+  return {
+    role: entry.role || fallback.role || '关山路人',
+    lines: Array.isArray(entry.lines) && entry.lines.length ? entry.lines : fallback.lines
+  };
+}
+
+function prettyNpcName(name){
+  const parts = String(name || '').split('_');
+  return parts.length > 1 ? parts.slice(1).join('·') : String(name || '');
+}
+
+function updateInteraction(dt){
+  if(interactionCooldown > 0) interactionCooldown = Math.max(0, interactionCooldown - dt);
+  if(!controls.isLocked || dialogue.active || !playerOnFloor || !worldOctree || interactionCooldown > 0){
+    hideInteractionPrompt();
+    return;
+  }
+
+  camera.getWorldDirection(tmpForward);
+  tmpForward.y = 0;
+  if(tmpForward.lengthSq() < 1e-5){ hideInteractionPrompt(); return; }
+  tmpForward.normalize();
+
+  let nearestNpc = null;
+  let nearestNpcDist = Infinity;
+  let nearestQuest = null;
+  let nearestQuestDist = Infinity;
+  const feet = player.start.y - 0.35;
+
+  for(const target of questTargets){
+    if(!target.position) continue;
+    const dx = target.position.x - player.end.x;
+    const dz = target.position.z - player.end.z;
+    const dist = Math.hypot(dx, dz);
+    if(dist > target.range || dist < 0.01) continue;
+    if(Math.abs(target.position.y - feet) > 1.45) continue;
+    if((dx * tmpForward.x + dz * tmpForward.z) / dist < DIALOGUE_FACING_DOT) continue;
+
+    dlgRayOrigin.set(player.end.x, feet + 1.28, player.end.z);
+    dlgRayTarget.set(target.position.x, target.position.y + (target.height || 1.2) * 0.55, target.position.z);
+    dlgRayDir.copy(dlgRayTarget).sub(dlgRayOrigin);
+    const rayLen = dlgRayDir.length();
+    dlgRayDir.normalize();
+    dlgRay.set(dlgRayOrigin, dlgRayDir);
+    const hit = worldOctree.rayIntersect(dlgRay);
+    if(hit && hit.distance < rayLen - 0.38) continue;
+
+    if(dist < nearestQuestDist){
+      nearestQuest = target;
+      nearestQuestDist = dist;
+    }
+  }
+
+  for(const record of npcRecords){
+    const p = record.data.gltf.position;
+    const dx = p[0] - player.end.x;
+    const dz = p[2] - player.end.z;
+    const dist = Math.hypot(dx, dz);
+    if(dist > DIALOGUE_RANGE || dist < 0.01) continue;
+    if(Math.abs(p[1] - feet) > 1.45) continue;
+    if((dx * tmpForward.x + dz * tmpForward.z) / dist < DIALOGUE_FACING_DOT) continue;
+
+    dlgRayOrigin.set(player.end.x, feet + 1.28, player.end.z);
+    dlgRayTarget.set(p[0], p[1] + record.height * 0.58, p[2]);
+    dlgRayDir.copy(dlgRayTarget).sub(dlgRayOrigin);
+    const rayLen = dlgRayDir.length();
+    dlgRayDir.normalize();
+    dlgRay.set(dlgRayOrigin, dlgRayDir);
+    const hit = worldOctree.rayIntersect(dlgRay);
+    // 目标胸口在 NPC 自己的圆柱内部，射线会先打到圆柱表面；
+    // 只有明显早于 NPC 表面的命中才算墙体遮挡。
+    if(hit && hit.distance < rayLen - 0.38) continue;
+
+    if(dist < nearestNpcDist){
+      nearestNpc = record;
+      nearestNpcDist = dist;
+    }
+  }
+
+  if(nearestQuest && (!nearestNpc || nearestQuestDist <= nearestNpcDist + 0.01)){
+    questCandidate = nearestQuest;
+    interactionCandidate = null;
+    interactWho.textContent = nearestQuest.label;
+    interactVerb.textContent = nearestQuest.verb || '互动';
+    interactPrompt.classList.add('show');
+    return;
+  }
+
+  if(nearestNpc){
+    questCandidate = null;
+    interactionCandidate = nearestNpc;
+    interactWho.textContent = prettyNpcName(nearestNpc.data.name);
+    interactVerb.textContent = '交谈';
+    interactPrompt.classList.add('show');
+    return;
+  }
+
+  hideInteractionPrompt();
+}
+
+function renderDialogueLine(){
+  if(!dialogue.active) return;
+  const line = dialogue.lines[dialogue.lineIndex] || '（对方沉默不语。）';
+  dlgText.textContent = line;
+  dlgCount.textContent = `${dialogue.lineIndex + 1} / ${dialogue.lines.length}`;
+}
+
+function startDialogue(record){
+  if(dialogue.active || !record || !controls.isLocked) return;
+  const entry = getDialogueEntry(record);
+  if(!entry) return;
+  dialogue.active = true;
+  dialogue.npc = record;
+  dialogue.lines = entry.lines;
+  dialogue.lineIndex = 0;
+  dialogue.savedRotation.copy(camera.rotation);
+  dialogue.cameraReady = false;
+  controls.enabled = false;
+  keys.w = keys.a = keys.s = keys.d = keys.shift = false;
+  playerVelocity.set(0, 0, 0);
+  playerHorizSpeed = 0;
+  smoothedHorizSpeed = 0;
+  jumpAnimTimer = 0;
+  jumpQueued = false;
+
+  const p = record.data.gltf.position;
+  faceTargetYaw = Math.atan2(p[0] - player.end.x, p[2] - player.end.z);
+  dlgName.textContent = prettyNpcName(record.data.name);
+  dlgRole.textContent = entry.role;
+  dialogueEl.classList.add('show');
+  hideInteractionPrompt();
+  renderDialogueLine();
+}
+
+function endDialogue(){
+  if(!dialogue.active) return;
+  dialogue.active = false;
+  dialogue.npc = null;
+  dialogue.lines = [];
+  dialogue.lineIndex = 0;
+  dialogueEl.classList.remove('show');
+  controls.enabled = true;
+  camera.rotation.copy(dialogue.savedRotation);
+  cameraInitialized = false;
+  syncCamera();
+  interactionCooldown = 0.35;
+  hideInteractionPrompt();
+}
+
+function advanceDialogue(){
+  if(!dialogue.active) return;
+  if(dialogue.lineIndex < dialogue.lines.length - 1){
+    dialogue.lineIndex++;
+    renderDialogueLine();
+  } else {
+    endDialogue();
+  }
+}
+
+function updateDialogue(dt){
+  if(!dialogue.active || !dialogue.npc) return;
+  const npc = dialogue.npc;
+  const p = npc.data.gltf.position;
+  const targetYaw = Math.atan2(player.end.x - p[0], player.end.z - p[2]);
+  let delta = (targetYaw - npc.visual.rotation.y + Math.PI) % (Math.PI * 2);
+  if(delta < 0) delta += Math.PI * 2;
+  delta -= Math.PI;
+  npc.visual.rotation.y += delta * (1 - Math.exp(-8 * dt));
+}
+
+function updateDialogueCamera(dt){
+  if(!dialogue.npc) return;
+  const feet = player.start.y - 0.35;
+  dlgPlayerHead.set(player.end.x, feet + dialogueTune.eye, player.end.z);
+  const p = dialogue.npc.data.gltf.position;
+  dlgNpcHead.set(p[0], p[1] + dialogue.npc.height * 0.78, p[2]);
+  dlgDir.copy(dlgNpcHead).sub(dlgPlayerHead);
+  dlgDir.y = 0;
+  if(dlgDir.lengthSq() < 1e-5) dlgDir.set(0, 0, 1);
+  dlgDir.normalize();
+  dlgRight.crossVectors(dlgDir, UP).normalize();
+
+  // 过肩机位：在玩家身后、向侧边让开，避免角色后背挡住 NPC 的脸。
+  dlgCamTarget.copy(dlgPlayerHead)
+    .addScaledVector(dlgDir, -dialogueTune.back)
+    .addScaledVector(dlgRight, dialogueTune.side);
+  dlgCamTarget.y = Math.max(feet + 0.45, dlgPlayerHead.y + dialogueTune.lift);
+
+  // 机位若被墙/柱挡住，沿玩家头部到机位的射线立即缩短。
+  dlgRayDir.copy(dlgCamTarget).sub(dlgPlayerHead);
+  const camLen = dlgRayDir.length();
+  if(camLen > 0.001 && worldOctree){
+    dlgRayDir.normalize();
+    dlgRay.set(dlgPlayerHead, dlgRayDir);
+    const hit = worldOctree.rayIntersect(dlgRay);
+    if(hit && hit.distance < camLen - 0.12){
+      dlgCamTarget.copy(dlgPlayerHead).addScaledVector(dlgRayDir, Math.max(0.38, hit.distance - 0.10));
+      dlgCamTarget.y = Math.max(feet + 0.42, dlgCamTarget.y);
+    }
+  }
+
+  if(!dialogue.cameraReady){
+    camera.position.copy(dlgCamTarget);
+    dialogue.cameraReady = true;
+  } else {
+    camera.position.lerp(dlgCamTarget, 1 - Math.exp(-7 * dt));
+  }
+  camera.lookAt(dlgNpcHead);
+}
+
+
+function resetPlayer(){
+  player.start.copy(spawn);
+  player.end.copy(spawn).add(new THREE.Vector3(0, 1.05, 0));
+  playerVelocity.set(0, 0, 0);
+  playerOnFloor = false;
+  playerHorizSpeed = 0;
+  smoothedHorizSpeed = 0;
+  jumpAnimTimer = 0;
+  faceTargetYaw = Math.PI;
+  camera.rotation.set(-0.04, 0, 0, 'YXZ');
+  updatePlayerVisual(0, true);
+  syncCamera();
+}
+
+function resolveCollision(){
+  if(!worldOctree) return false;
+  let blocked = false;
+  for(let i=0;i<4;i++){
+    const result = worldOctree.capsuleIntersect(player);
+    if(!result) break;
+    player.translate(tmpNormal.copy(result.normal).multiplyScalar(result.depth));
+    if(result.normal.y > 0.5){
+      playerOnFloor = true;
+      if(playerVelocity.y < 0) playerVelocity.y = 0;
+    } else {
+      blocked = true;
+      const d = playerVelocity.dot(result.normal);
+      if(d < 0) playerVelocity.addScaledVector(result.normal, -d);
+    }
+  }
+  return blocked;
+}
+
+function resolveCampCollisions(){
+  if(!campColliders.length) return;
+  const feet = player.start.y - 0.35;
+  for(const c of campColliders){
+    if(c.enabled === false) continue;
+    if(Math.abs(feet - c.y) > 2.6) continue;
+    const dx = player.end.x - c.x;
+    const dz = player.end.z - c.z;
+    const min = c.r + 0.35;
+    const d2 = dx * dx + dz * dz;
+    if(d2 >= min * min) continue;
+    const d = Math.sqrt(d2);
+    tmpCampPush.set(d > .001 ? dx / d : 1, 0, d > .001 ? dz / d : 0);
+    player.translate(tmpCampPush.multiplyScalar(min - d));
+  }
+}
+
+const STEP_HEIGHT = 0.50;
+const STEP_FORWARD = 0.42;
+const STEP_TOLERANCE = 0.06;
+const STEP_UP_LIFT = STEP_HEIGHT + 0.02;
+
+function tryStepUp(forwardDelta){
+  const saveStart = player.start.clone();
+  const saveEnd = player.end.clone();
+  const feet = saveStart.y - 0.35;
+  const dir = tmpWish.lengthSq() > 1e-4 ? tmpWish : (forwardDelta.lengthSq() > 1e-4 ? forwardDelta : tmpForward);
+  // 先抬到 0.5m 台阶上方，再向前探 0.42m；不能只抬不前进，否则中心还在台阶外。
+  player.start.y = saveStart.y + STEP_UP_LIFT;
+  player.end.y = saveEnd.y + STEP_UP_LIFT;
+  player.translate(tmpStep.copy(dir).normalize().multiplyScalar(STEP_FORWARD));
+
+  const sideHit = worldOctree.capsuleIntersect(player);
+  if(sideHit && sideHit.normal.y <= 0.5){
+    player.start.copy(saveStart);
+    player.end.copy(saveEnd);
+    playerOnFloor = true;
+    return;
+  }
+
+  // 从抬升后的脚底上方垂直向下探，找台阶顶面；必须比原地面高、且不超过 0.5m。
+  tmpStepRayOrigin.set(player.end.x, player.start.y - 0.35 + 0.25, player.end.z);
+  tmpStepRay.set(tmpStepRayOrigin, DOWN);
+  const floorHit = worldOctree.rayIntersect(tmpStepRay);
+  if(floorHit){
+    const floorY = floorHit.position.y;
+    const rise = floorY - feet;
+    if(rise > 0.06 && rise <= STEP_HEIGHT + STEP_TOLERANCE){
+      player.start.y = floorY + 0.35;
+      player.end.y = floorY + 0.35 + (saveEnd.y - saveStart.y);
+      playerOnFloor = true;
+      return;
+    }
+  }
+
+  player.start.copy(saveStart);
+  player.end.copy(saveEnd);
+  playerOnFloor = true;     // 没踩上台阶，回到原来的地面
+}
+
+function updatePlayer(dt){
+  const wasFloor = playerOnFloor;
+  playerOnFloor = false;
+
+  camera.getWorldDirection(tmpForward);
+  tmpForward.y = 0;
+  if(tmpForward.lengthSq() < 1e-6) tmpForward.set(0, 0, -1);
+  tmpForward.normalize();
+  tmpRight.crossVectors(tmpForward, UP).normalize();
+
+  tmpWish.set(0, 0, 0);
+  if(keys.w) tmpWish.add(tmpForward);
+  if(keys.s) tmpWish.sub(tmpForward);
+  if(keys.d) tmpWish.add(tmpRight);
+  if(keys.a) tmpWish.sub(tmpRight);
+  if(tmpWish.lengthSq() > 0) tmpWish.normalize();
+
+  const speed = keys.shift ? 5.6 : 3.1;
+  const accel = wasFloor ? 10 : 4;
+  playerVelocity.x += (tmpWish.x * speed - playerVelocity.x) * Math.min(1, accel * dt);
+  playerVelocity.z += (tmpWish.z * speed - playerVelocity.z) * Math.min(1, accel * dt);
+
+  if(jumpQueued && wasFloor){
+    playerVelocity.y = 4.8;
+    playerOnFloor = false;
+    jumpAnimTimer = 1.0;
+  }
+  jumpQueued = false;
+  playerVelocity.y -= 9.8 * dt;
+
+  tmpDelta.copy(playerVelocity).multiplyScalar(dt);
+  const steps = Math.max(1, Math.ceil(tmpDelta.length() / 0.08));
+  tmpDelta.divideScalar(steps);
+  for(let i=0;i<steps;i++){
+    player.translate(tmpDelta);
+    const blocked = resolveCollision();
+    resolveCampCollisions();
+    if(blocked && wasFloor) tryStepUp(tmpDelta);
+  }
+
+  if(player.start.y < -40){
+    resetPlayer();
+  }
+
+  playerHorizSpeed = Math.hypot(playerVelocity.x, playerVelocity.z);
+  if(tmpWish.lengthSq() > 0.0001){
+    faceTargetYaw = Math.atan2(tmpWish.x, tmpWish.z);
+  }
+  updateCamera(dt);
+}
+
+function updateNpcs(dt){
+  for(const m of mixers) m.update(dt);
+}
+
+function updateQuestFx(dt, time){
+  if(questBeacon && questBeacon.visible){
+    questBeacon.rotation.y += dt * 1.25;
+    const pulse = 1 + Math.sin(time * 3.2) * 0.08;
+    questBeacon.scale.setScalar(pulse);
+  }
+  if(questFireLight){
+    questFireLight.intensity = 1.55 + Math.sin(time * 9.5) * .18 + Math.sin(time * 23) * .07;
+  }
+}
+
+function setProgress(pct, text){
+  bar.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%';
+  if(text) loadmsg.textContent = text;
+}
+
+async function boot(){
+  try {
+    console.time('boot-total');
+    setProgress(3, '读取人物清单');
+    console.time('boot-manifest');
+    const res = await fetch('./npc_manifest.json');
+    if(!res.ok) throw new Error('npc_manifest.json 读取失败');
+    manifest = await res.json();
+    console.timeEnd('boot-manifest');
+
+    setProgress(5, '读取对话台词');
+    try{
+      const dres = await fetch('./dialogue.json');
+      if(dres.ok){
+        const loadedDialogue = await dres.json();
+        if(loadedDialogue && loadedDialogue.npcs) dialogueData = loadedDialogue;
+      }
+    } catch(err){
+      console.warn('dialogue.json 读取失败，使用默认台词', err);
+    }
+
+    setProgress(8, '载入碰撞层');
+    console.time('boot-collision-total');
+    console.time('boot-collision-glb');
+    const colGltf = await loadGLTF('./雁门关_碰撞.glb');
+    console.timeEnd('boot-collision-glb');
+    buildCollision(colGltf.scene);
+    addNpcBlockers();
+    buildOctree();
+    buildQuestCamp();
+    console.timeEnd('boot-collision-total');
+
+    setProgress(12, '载入雁门关场景 60 MB');
+    console.time('boot-yanmen-glb');
+    const sceneGltf = await loadGLTF('./yanmen.glb', e=>{
+      if(e.total){
+        const mb = e.loaded/1048576, total = e.total/1048576;
+        setProgress(12 + 80 * (e.loaded/e.total), `载入场景 ${mb.toFixed(0)} / ${total.toFixed(0)} MB`);
+      }
+    });
+    console.timeEnd('boot-yanmen-glb');
+    installScene(sceneGltf.scene);
+    console.timeEnd('boot-total');
+    setProgress(86, '场景就绪，载入玩家角色');
+    await loadPlayerCharacter();
+    setProgress(94, '玩家角色就绪，载入 NPC');
+    enterBtn.disabled = false;
+    enterBtn.textContent = FROM_WUTAN ? '进入关山市镇' : '进入关城';
+    loadNpcVisuals();
+    setTimeout(()=>{ if(!overlay.classList.contains('hidden')) setProgress(100, FROM_WUTAN ? '已到乌坦城外 · 关山市镇' : '点击进入 · 关山市镇'); }, 800);
+  } catch(err){
+    console.error(err);
+    loadmsg.textContent = '载入失败：' + (err.message || err);
+    bar.style.width = '0%';
+    enterBtn.disabled = true;
+    enterBtn.textContent = '载入失败';
+  }
+}
+boot();
+
+enterBtn.addEventListener('click', ()=>controls.lock());
+let enteredOnce = false;
+controls.addEventListener('lock', ()=>{
+  overlay.classList.add('hidden');
+  if(enteredOnce) return;
+  enteredOnce = true;
+  const q = getYanmenQuest();
+  if(q.stage === 1) showToast('🗡️ 山贼营地就在关外东南坡地，沿南野山道过去', 3600);
+  else if(q.stage === 2) showToast('📦 货箱还在山贼营地，靠近后按 F 拾取', 3400);
+  else if(q.stage === 3) showToast('🏯 货箱已取回，按 B 回乌坦城交给沈砚', 3600);
+});
+controls.addEventListener('unlock', ()=>{
+  // 对话中按 Esc 时浏览器会先释放指针锁；这里兜底关闭对话，
+  // 避免暂停层盖住仍然打开的面板。
+  if(dialogue.active) endDialogue();
+  overlay.classList.remove('hidden');
+  if(npcLoaded) enterBtn.textContent = '继续探索';
+});
+controls.addEventListener('error', ()=>{ loadmsg.textContent = '鼠标锁定失败，请点击页面重试'; });
+
+addEventListener('keydown', e=>{
+  // 对话进行中：只处理翻页/离开，WASD 与跳跃全部吞掉。
+  if(dialogue.active){
+    if(e.repeat) return;
+    if(e.code === 'Space' || e.code === 'KeyF'){
+      e.preventDefault();
+      advanceDialogue();
+      return;
+    }
+    if(e.code === 'Escape'){
+      e.preventDefault();
+      e.stopPropagation();
+      endDialogue();
+      return;
+    }
+    if(e.code === 'KeyW' || e.code === 'KeyA' || e.code === 'KeyS' || e.code === 'KeyD' ||
+       e.code === 'ShiftLeft' || e.code === 'ShiftRight'){
+      e.preventDefault();
+    }
+    return;
+  }
+  if(e.code === 'KeyB'){
+    e.preventDefault();
+    returnToWutan();
+    return;
+  }
+  if(e.code === 'KeyW') keys.w = true;
+  if(e.code === 'KeyA') keys.a = true;
+  if(e.code === 'KeyS') keys.s = true;
+  if(e.code === 'KeyD') keys.d = true;
+  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+  if(e.code === 'Space'){
+    if(controls.isLocked) e.preventDefault();
+    jumpQueued = true;
+  }
+  if(e.code === 'KeyF' && controls.isLocked){
+    e.preventDefault();
+    if(questCandidate){
+      const target = questCandidate;
+      hideInteractionPrompt();
+      if(target.run) target.run();
+    } else if(interactionCandidate){
+      startDialogue(interactionCandidate);
+    }
+  }
+  if(e.code === 'KeyC'){
+    if(collisionGroup) collisionGroup.visible = !collisionGroup.visible;
+  }
+  if(e.code === 'KeyR') resetPlayer();
+});
+addEventListener('keyup', e=>{
+  if(e.code === 'KeyW') keys.w = false;
+  if(e.code === 'KeyA') keys.a = false;
+  if(e.code === 'KeyS') keys.s = false;
+  if(e.code === 'KeyD') keys.d = false;
+  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+});
+
+addEventListener('resize', ()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+const clock = new THREE.Clock();
+const BASE_PR = Math.min(devicePixelRatio, 1.0);
+let pixelRatio = BASE_PR;
+let fpsAcc = 0, fpsFrames = 0, fpsNow = 60;
+renderer.setAnimationLoop(()=>{
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if(controls.isLocked && !dialogue.active) updatePlayer(dt);
+  else updateCamera(dt);
+  updatePlayerVisual(dt);
+  updatePlayerAnimation(dt);
+  updateNpcs(dt);
+  updateQuestFx(dt, clock.elapsedTime);
+  updateDialogue(dt);
+  updateInteraction(dt);
+  renderer.render(scene, camera);
+  fpsAcc += dt; fpsFrames++;
+  if(fpsAcc > 1.0){
+    fpsNow = fpsFrames/fpsAcc;
+    statFps.textContent = Math.round(fpsNow);
+    // 自适应分辨率：低于 28 帧自动降采样，回到 56 帧以上再逐步升回来
+    if(fpsNow < 28 && pixelRatio > 0.62){
+      pixelRatio = Math.max(0.62, pixelRatio - 0.08);
+      renderer.setPixelRatio(pixelRatio);
+    } else if(fpsNow > 56 && pixelRatio < BASE_PR){
+      pixelRatio = Math.min(BASE_PR, pixelRatio + 0.04);
+      renderer.setPixelRatio(pixelRatio);
+    }
+    fpsAcc = 0; fpsFrames = 0;
+  }
+  window.__frames = (window.__frames || 0) + 1;
+});
+
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
+</script>
+</body>
+</html>
