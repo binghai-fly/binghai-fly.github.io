@@ -103,8 +103,8 @@
   <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
   <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><em>B 回城</em></div>
 </div>
-<div class="topright"><b>WASD</b> 移动 · <b>Shift</b> 疾走<br><b>Space</b> 跳跃 · <b>F</b> 交谈<br><b>鼠标</b> 转向 · <b>C</b> 碰撞层<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>Esc</b> 暂停</div>
-<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift</span> 疾走　<span>Space</span> 跳　<span>F</span> 交谈<br><span>鼠标</span> 转向　<span>C</span> 显示碰撞层　<span>R</span> 回到起点　<span>B</span> 回乌坦城　<span>Esc</span> 暂停</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift</b> 疾走<br><b>Space</b> 跳跃 · <b>F</b> 交谈<br><b>鼠标</b> 转向 · <b>C</b> 碰撞层<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>M</b> 音效 · <b>Esc</b> 暂停</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift</span> 疾走　<span>Space</span> 跳　<span>F</span> 交谈<br><span>鼠标</span> 转向　<span>C</span> 显示碰撞层　<span>R</span> 回到起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>Esc</span> 暂停</div>
 <div id="toast"></div>
 <div class="crosshair"></div>
 <div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
@@ -342,6 +342,17 @@ let playerHorizSpeed = 0;
 let smoothedHorizSpeed = 0;
 const mixers = [];
 const npcRecords = [];
+const audioState = {
+  ctx: null,
+  master: null,
+  noise: null,
+  windSource: null,
+  windGain: null,
+  muted: false,
+  started: false,
+  stepTimer: 0,
+  stepCount: 0
+};
 let npcLoaded = 0;
 let interactionCandidate = null;
 let interactionCooldown = 0;
@@ -1623,6 +1634,160 @@ function updateNpcs(dt){
   }
 }
 
+const audioDir = new THREE.Vector3();
+function makeAudioNoise(ctx, seconds, amp){
+  const len = Math.floor(ctx.sampleRate * seconds);
+  const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<len;i++) data[i] = (Math.random()*2 - 1) * amp;
+  return buffer;
+}
+
+function initAudio(){
+  if(audioState.ctx){
+    if(audioState.ctx.state === 'suspended') audioState.ctx.resume().catch(()=>{});
+    return audioState.ctx;
+  }
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if(!Ctx) return null;
+  const ctx = new Ctx();
+  audioState.ctx = ctx;
+  audioState.noise = makeAudioNoise(ctx, 1, .5);
+  const master = ctx.createGain();
+  master.gain.value = audioState.muted ? 0 : .2;
+  master.connect(ctx.destination);
+  audioState.master = master;
+
+  const wind = ctx.createBufferSource();
+  wind.buffer = makeAudioNoise(ctx, 2, .32);
+  wind.loop = true;
+  const low = ctx.createBiquadFilter();
+  low.type = 'lowpass'; low.frequency.value = 480; low.Q.value = .5;
+  const high = ctx.createBiquadFilter();
+  high.type = 'highpass'; high.frequency.value = 80;
+  const windGain = ctx.createGain();
+  windGain.gain.value = .035;
+  wind.connect(low).connect(high).connect(windGain).connect(master);
+  wind.start();
+  audioState.windSource = wind;
+  audioState.windGain = windGain;
+  const lfo = ctx.createOscillator();
+  lfo.type = 'sine'; lfo.frequency.value = .13;
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = .012;
+  lfo.connect(lfoGain).connect(windGain.gain);
+  lfo.start();
+  audioState.started = true;
+  ctx.resume().catch(()=>{});
+  updateAudio(0);
+  return ctx;
+}
+
+function setAudioMuted(muted){
+  audioState.muted = !!muted;
+  if(audioState.master && audioState.ctx){
+    audioState.master.gain.setTargetAtTime(audioState.muted ? 0 : .2, audioState.ctx.currentTime, .08);
+  }
+}
+
+function toggleAudio(){
+  if(!audioState.ctx) initAudio();
+  setAudioMuted(!audioState.muted);
+  showToast(audioState.muted ? '🔇 音效已关闭' : '🔊 音效已开启', 1800);
+}
+
+function updateAudioListener(){
+  const ctx = audioState.ctx;
+  if(!ctx || !ctx.listener) return;
+  const listener = ctx.listener;
+  const p = camera.position;
+  camera.getWorldDirection(audioDir);
+  if(listener.positionX){
+    listener.positionX.value = p.x;
+    listener.positionY.value = p.y;
+    listener.positionZ.value = p.z;
+    listener.forwardX.value = audioDir.x;
+    listener.forwardY.value = audioDir.y;
+    listener.forwardZ.value = audioDir.z;
+    listener.upX.value = 0;
+    listener.upY.value = 1;
+    listener.upZ.value = 0;
+  } else if(listener.setPosition){
+    listener.setPosition(p.x, p.y, p.z);
+    listener.setOrientation(audioDir.x, audioDir.y, audioDir.z, 0, 1, 0);
+  }
+}
+
+function playAudioStep(volume = .08, record = null){
+  const ctx = audioState.ctx;
+  if(!ctx || !audioState.noise || audioState.muted) return;
+  const now = ctx.currentTime;
+  const src = ctx.createBufferSource();
+  src.buffer = audioState.noise;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = record ? 520 + Math.random()*130 : 760 + Math.random()*220;
+  filter.Q.value = .75;
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(volume, now + .015);
+  gain.gain.exponentialRampToValueAtTime(.0001, now + .14);
+  src.connect(filter).connect(gain);
+  let panner = null;
+  if(record && ctx.createPanner){
+    panner = ctx.createPanner();
+    panner.panningModel = 'equalpower';
+    panner.distanceModel = 'inverse';
+    panner.refDistance = 3;
+    panner.maxDistance = 28;
+    panner.rolloffFactor = 1.2;
+    const pos = record.visual.position;
+    if(panner.positionX){
+      panner.positionX.value = pos.x;
+      panner.positionY.value = pos.y + .2;
+      panner.positionZ.value = pos.z;
+    } else if(panner.setPosition){
+      panner.setPosition(pos.x, pos.y + .2, pos.z);
+    }
+    gain.connect(panner);
+    panner.connect(audioState.master);
+  } else {
+    gain.connect(audioState.master);
+  }
+  src.start(now, Math.random()*.6, .16);
+  audioState.stepCount++;
+}
+
+function updateAudio(dt){
+  const ctx = audioState.ctx;
+  if(!ctx) return;
+  updateAudioListener();
+  if(!audioState.started || audioState.muted) return;
+  const inGame = controls.isLocked && !dialogue.active;
+  if(inGame && playerHorizSpeed > .75 && playerOnFloor){
+    audioState.stepTimer -= dt;
+    if(audioState.stepTimer <= 0){
+      playAudioStep(keys.shift ? .11 : .085);
+      audioState.stepTimer = keys.shift ? .3 : .48;
+    }
+  } else {
+    audioState.stepTimer = Math.min(audioState.stepTimer, .1);
+  }
+  if(!inGame) return;
+  for(const record of npcRecords){
+    if(!record.patrol) continue;
+    if(record.currentAction() !== 'Walk'){
+      record.audioStep = .25;
+      continue;
+    }
+    record.audioStep = (typeof record.audioStep === 'number' ? record.audioStep : Math.random()*.45) - dt;
+    if(record.audioStep <= 0){
+      playAudioStep(.055, record);
+      record.audioStep = .52;
+    }
+  }
+}
+
 function updateQuestFx(dt, time){
   if(questBeacon && questBeacon.visible){
     questBeacon.rotation.y += dt * 1.25;
@@ -1699,9 +1864,10 @@ async function boot(){
 }
 boot();
 
-enterBtn.addEventListener('click', ()=>controls.lock());
+enterBtn.addEventListener('click', ()=>{ initAudio(); controls.lock(); });
 let enteredOnce = false;
 controls.addEventListener('lock', ()=>{
+  initAudio();
   overlay.classList.add('hidden');
   if(enteredOnce) return;
   enteredOnce = true;
@@ -1720,6 +1886,11 @@ controls.addEventListener('unlock', ()=>{
 controls.addEventListener('error', ()=>{ loadmsg.textContent = '鼠标锁定失败，请点击页面重试'; });
 
 addEventListener('keydown', e=>{
+  if(e.code === 'KeyM'){
+    e.preventDefault();
+    toggleAudio();
+    return;
+  }
   // 对话进行中：只处理翻页/离开，WASD 与跳跃全部吞掉。
   if(dialogue.active){
     if(e.repeat) return;
@@ -1794,6 +1965,7 @@ renderer.setAnimationLoop(()=>{
   updatePlayerVisual(dt);
   updatePlayerAnimation(dt);
   updateNpcs(dt);
+  updateAudio(dt);
   updateQuestFx(dt, clock.elapsedTime);
   updateDialogue(dt);
   updateInteraction(dt);
@@ -1815,7 +1987,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
 </script>
 </body>
 </html>
