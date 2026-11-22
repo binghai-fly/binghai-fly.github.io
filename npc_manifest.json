@@ -335,7 +335,12 @@
         "rotationY": 0.0,
         "scale": 1.02
       },
-      "defaultAnimation": "Idle"
+      "defaultAnimation": "Idle",
+      "patrol": {
+        "points": [[3.9, 39.5], [3.9, 41.9]],
+        "speed": 0.8,
+        "pause": 1.5
+      }
     },
     {
       "name": "市镇_巡卒甲",
@@ -354,7 +359,12 @@
         "rotationY": 0.0,
         "scale": 1.02
       },
-      "defaultAnimation": "Idle"
+      "defaultAnimation": "Idle",
+      "patrol": {
+        "points": [[-3.9, 39.3], [-3.9, 42.3]],
+        "speed": 0.8,
+        "pause": 1.5
+      }
     },
     {
       "name": "市镇_布妇",

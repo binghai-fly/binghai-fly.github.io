@@ -549,6 +549,8 @@ function buildCollision(root){
 
 function addNpcBlockers(){
   for(const npc of manifest.npcs){
+    // 巡卒按路线移动，静态碰撞柱会留在原地；改为运行时胶囊推开。
+    if(npc.patrol) continue;
     const h = manifest.characters[npc.type].height * npc.gltf.scale;
     const p = npc.gltf.position;
     const geo = new THREE.CylinderGeometry(0.30, 0.30, h, 10, 1, false);
@@ -902,20 +904,43 @@ function loadNpcVisuals(){
       });
       npcRoot.add(visual);
       const mixer = new THREE.AnimationMixer(visual);
-      const clip = THREE.AnimationClip.findByName(src.animations, npc.defaultAnimation || 'Idle');
-      if(clip){
+      const actions = {};
+      for(const clip of src.animations){
+        if(!clip || (clip.name !== 'Idle' && clip.name !== 'Walk')) continue;
         const action = mixer.clipAction(clip);
-        action.time = Math.random() * clip.duration;
-        action.play();
+        action.setEffectiveWeight(1);
+        actions[clip.name] = action;
+      }
+      let activeNpcAction = null;
+      function playNpcAction(name, fade = 0.22){
+        const next = actions[name] || actions.Idle;
+        if(!next || activeNpcAction === next) return;
+        if(activeNpcAction) activeNpcAction.fadeOut(fade);
+        next.reset().fadeIn(fade).play();
+        activeNpcAction = next;
+      }
+      const idleAction = actions.Idle || actions.Walk || null;
+      if(idleAction){
+        idleAction.time = Math.random() * idleAction.getClip().duration;
+        idleAction.play();
+        activeNpcAction = idleAction;
       }
       mixer.timeScale = 0.92 + Math.random()*0.16;
       mixers.push(mixer);
-      npcRecords.push({
+      const record = {
         data: npc,
         visual,
         mixer,
+        actions,
+        setAction: playNpcAction,
+        currentAction: ()=>activeNpcAction ? activeNpcAction.getClip().name : null,
         height: manifest.characters[npc.type].height * (npc.gltf.scale || 1)
-      });
+      };
+      if(npc.patrol && actions.Walk){
+        record.patrol = createNpcPatrol(npc.patrol);
+        if(record.patrol) record.patrol.wait = 1.2 + Math.random()*0.8;
+      }
+      npcRecords.push(record);
     }
     npcLoaded = npcRecords.length;
     statNpc.textContent = npcLoaded + '/' + manifest.npcs.length;
@@ -1517,8 +1542,85 @@ function updatePlayer(dt){
   updateCamera(dt);
 }
 
+function createNpcPatrol(spec){
+  const points = (spec && Array.isArray(spec.points) ? spec.points : [])
+    .map(p=>[Number(p[0]), Number(p[1])])
+    .filter(p=>Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if(points.length < 2) return null;
+  const len = Math.hypot(points[1][0]-points[0][0], points[1][1]-points[0][1]);
+  if(len < 0.01) return null;
+  return {
+    points,
+    len,
+    t: 0,
+    dir: 1,
+    wait: 0,
+    speed: Math.max(0.2, Number(spec.speed) || 0.8),
+    pause: Math.max(0, Number(spec.pause) || 1.5)
+  };
+}
+
+function updateNpcPatrol(record, dt){
+  const p = record.patrol;
+  if(!p) return;
+  // 对话时把巡卒钉在原地，避免说着话人走开。
+  if(dialogue.active){
+    record.setAction('Idle');
+    return;
+  }
+  if(p.wait > 0){
+    p.wait = Math.max(0, p.wait - dt);
+    record.setAction('Idle');
+    return;
+  }
+  const a = p.points[0], b = p.points[1];
+  const dx = b[0] - a[0], dz = b[1] - a[1];
+  p.t += p.dir * (p.speed * dt) / p.len;
+  if(p.t >= 1){ p.t = 1; p.dir = -1; p.wait = p.pause; }
+  else if(p.t <= 0){ p.t = 0; p.dir = 1; p.wait = p.pause; }
+
+  const x = a[0] + dx * p.t;
+  const z = a[1] + dz * p.t;
+  record.visual.position.x = x;
+  record.visual.position.z = z;
+  record.visual.position.y = record.data.gltf.position[1];
+  record.data.gltf.position[0] = x;
+  record.data.gltf.position[2] = z;
+
+  record.setAction(p.wait > 0 ? 'Idle' : 'Walk');
+  const dirX = dx * p.dir, dirZ = dz * p.dir;
+  if(Math.abs(dirX) + Math.abs(dirZ) > 0.001){
+    const targetYaw = Math.atan2(dirX, dirZ);
+    const delta = ((targetYaw - record.visual.rotation.y + Math.PI) % (Math.PI*2) + Math.PI*2) % (Math.PI*2) - Math.PI;
+    record.visual.rotation.y += delta * (1 - Math.exp(-7 * dt));
+    record.data.gltf.rotationY = record.visual.rotation.y;
+  }
+}
+
+function pushPlayerFromPatrol(record){
+  if(!record.patrol || dialogue.active) return;
+  const minDist = 0.72;
+  const dx = player.end.x - record.visual.position.x;
+  const dz = player.end.z - record.visual.position.z;
+  const d2 = dx*dx + dz*dz;
+  if(d2 >= minDist*minDist) return;
+  const d = Math.sqrt(d2) || 0.001;
+  const nx = dx / d, nz = dz / d;
+  const push = minDist - d;
+  player.start.x += nx * push;
+  player.start.z += nz * push;
+  player.end.x += nx * push;
+  player.end.z += nz * push;
+}
+
 function updateNpcs(dt){
+  for(const record of npcRecords){
+    if(record.patrol) updateNpcPatrol(record, dt);
+  }
   for(const m of mixers) m.update(dt);
+  for(const record of npcRecords){
+    if(record.patrol) pushPlayerFromPatrol(record);
+  }
 }
 
 function updateQuestFx(dt, time){
@@ -1713,7 +1815,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
 </script>
 </body>
 </html>
