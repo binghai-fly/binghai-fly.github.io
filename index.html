@@ -693,6 +693,7 @@ button:focus-visible,input:focus-visible{outline:2px solid #85d7df;outline-offse
  </div>
 </div>
 <script src="./vendor/lucide.min.js"></script>
+<script src="./butterfly_companion.js?v=bf2"></script>
 <div id="death-screen">
   <button type="button" id="death-close" class="close" aria-label="关闭">✕</button>
   <div class="dt">身死道消</div>
@@ -63191,6 +63192,7 @@ function DRACOWorker() {
 })();
 /* ===== /DRACOLoader ===== */
 let playerModel=null,mixer=null,animations={},currentAnim=null,weaponModel=null
+let playerMovingNow=false
 let heroUpgradePending=false,heroUpgradeTry=0,heroStatusTimer=null
 let wings=null,wingL=null,wingR=null,wingMatOuter=null,wingMatInner=null,wingAssetReady=false,wingAssetError=false,wingPending=false;
 let wingsOn=false,flyCeilMsg=false,wingLean=0,wingFoldGlide=0;
@@ -63201,6 +63203,20 @@ const _dracoLoader=new DRACOLoader();
 _dracoLoader.setDecoderPath('./vendor/draco/');
 _dracoLoader.setDecoderConfig({type:'js'});
 gltfLoader.setDRACOLoader(_dracoLoader);
+/* ===== 蓝斑凤蝶：跟随 / 落肩 / 待机落手指 ===== */
+let butterflyCompanion=null;
+function initButterflyCompanion(){
+  if(butterflyCompanion||typeof window.createButterflyCompanion!=='function')return;
+  butterflyCompanion=window.createButterflyCompanion(THREE,{
+    scene,
+    loadGLTF:(url)=>new Promise((resolve,reject)=>gltfLoader.load(url,resolve,undefined,reject)),
+    url:'./butterfly.glb?v=1',
+    getPlayerRoot:()=>playerModel,
+    scale:.92,
+    debugName:'__butterfly'
+  });
+  butterflyCompanion.load().catch(err=>console.warn('[butterfly] load failed',err));
+}
 /* ===== 怪兽1：外部 GLB 精英怪 ===== */
 const MODEL_ASSETS={};
 const MONSTER1_TPL={n:'怪兽1',icn:'🐲',hp:130,atk:10,def:3,xp:120,g:80,s:1,glb:true,unique:true,tameable:true,petKey:'monster1',petHeight:1.3,petAtk:12,radius:1.35,height:1.85};
@@ -64586,6 +64602,7 @@ function finishLoad(){
   if(GS.p.hp<=0){playerAlive=false;GS.dead=true;$('death-screen').classList.add('on');$('death-info').textContent='于乌坦城重聚斗气'}
   // 预编译所有材质：否则第一次把镜头转向某片区域时会现场编译着色器，卡一下
   try{renderer.compile(scene,camera)}catch(err){}
+  setTimeout(initButterflyCompanion,700);
   // 主角已就绪后再让 NPC/魔兽排队进来；首屏不再和主角抢那条慢链路。
   // 等玩家站稳（pumpBackgroundAssets / updateLazyModels 检测无移动输入）后再开始拉模型，避免边跑边解析掉帧。
   // 天穹/雾层建了 24 层全屏透明球壳，同半径同色的重复壳有 8 份，叠 8 次全屏混合纯属浪费
@@ -67073,6 +67090,7 @@ function animate(t,forcedDelta){
     _mv.addScaledVector(_fwd,touchMove.y).addScaledVector(_right,touchMove.x);
     if(GS.dead)_mv.set(0,0,0);
     const isMoving=_mv.length()>.1;
+    playerMovingNow=isMoving && !GS.dead;
     const speed=(keys.shift?runSpeed:walkSpeed)*(wingsOn?1.35:1)*(wingsOn&&GS.p.windS?1.08:1);
     dodging=!GS.dead&&gameNow()<dodgeT;
     if(dodging)moveBody(playerModel,dodgeDir.x*7.5*md,dodgeDir.z*7.5*md,.42,1.75,collisionBoxes);
@@ -67253,6 +67271,10 @@ function animate(t,forcedDelta){
   if(playerModel){
     updateNPCs(delta,time);
     updatePet(delta,time);
+    if(butterflyCompanion){
+      const bfIdle=!playerMovingNow&&!GS.dead&&!wingsOn&&playerModel.position.y<=groundY+.12&&attackAnimT<=0&&!dodging&&GS.ready;
+      butterflyCompanion.update(realDelta,{isIdle:bfIdle,canPerch:bfIdle,moving:playerMovingNow});
+    }
     updateLazyModels(delta);
     for(let i=enemies.length-1;i>=0;i--)updateEnemy(enemies[i],delta,time,playerModel.position);
     updateAirShots(delta);
@@ -68681,6 +68703,7 @@ window.__airDebug = {
 };
 
 initAirCombat();
+window.__mainDebug={get player(){return playerModel},get camera(){return camera},get scene(){return scene},get renderer(){return renderer},get bf(){return butterflyCompanion},get GS(){return GS},get groundY(){return groundY}};
 animate(performance.now());
 $('help-btn').addEventListener('click',toggleHelp);
 $('bm-close').addEventListener('click',()=>toggleBigMap(false));

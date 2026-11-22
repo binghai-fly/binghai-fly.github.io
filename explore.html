@@ -127,6 +127,7 @@
   </div>
 </div>
 
+<script src="./butterfly_companion.js?v=bf2"></script>
 <script type="importmap">
 {"imports":{"three":"./viewer/three.module.js","three/addons/":"./viewer/addons/"}}
 </script>
@@ -1027,6 +1028,24 @@ async function loadPlayerCharacter(){
   }
 }
 
+let butterflyCompanion = null;
+function initButterflyCompanion(){
+  if (butterflyCompanion) return;
+  if (typeof window.createButterflyCompanion !== 'function') {
+    console.warn('[butterfly] companion factory missing');
+    return;
+  }
+  butterflyCompanion = window.createButterflyCompanion(THREE, {
+    scene,
+    loadGLTF,
+    url: './butterfly.glb',
+    getPlayerRoot: () => playerVisual,
+    scale: 0.92,
+    debugName: '__butterfly'
+  });
+  butterflyCompanion.load().catch(err => console.warn('[butterfly] load failed', err));
+}
+
 function setPlayerAction(name, fade = 0.18){
   const next = playerActions[name];
   if(!next || next === currentPlayerAction) return;
@@ -1849,6 +1868,7 @@ async function boot(){
     console.timeEnd('boot-total');
     setProgress(86, '场景就绪，载入玩家角色');
     await loadPlayerCharacter();
+    initButterflyCompanion();
     setProgress(94, '玩家角色就绪，载入 NPC');
     enterBtn.disabled = false;
     enterBtn.textContent = FROM_WUTAN ? '进入关山市镇' : '进入关城';
@@ -1964,6 +1984,14 @@ renderer.setAnimationLoop(()=>{
   else updateCamera(dt);
   updatePlayerVisual(dt);
   updatePlayerAnimation(dt);
+  if (butterflyCompanion) {
+    butterflyCompanion.update(dt, {
+      isIdle: controls.isLocked && !dialogue.active && playerOnFloor &&
+              playerHorizSpeed < 0.08 && jumpAnimTimer <= 0 && currentPlayerActionName === 'Idle',
+      canPerch: controls.isLocked && !dialogue.active && playerOnFloor,
+      moving: playerHorizSpeed > 0.22
+    });
+  }
   updateNpcs(dt);
   updateAudio(dt);
   updateQuestFx(dt, clock.elapsedTime);
@@ -1987,7 +2015,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
 </script>
 </body>
 </html>
