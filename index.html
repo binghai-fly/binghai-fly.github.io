@@ -64355,7 +64355,7 @@ if(/[?&]nochar=1/.test(location.search)){
 }else{
   let tries=0
   const tryLoad=()=>{
-    const url='./character_modular.glb?v=opt50'+(tries?'&r='+tries:'')
+    const url='./character_modular.glb?v=opt52'+(tries?'&r='+tries:'')
     gltfLoader.load(url,onCharLoaded,prog=>{
       setLoad(Math.min(85,(prog.loaded/(prog.total||6116192)*85)),'正在读取角色模型 ('+Math.round(prog.loaded/1048576)+' MB)');
     },(err)=>{
@@ -64374,7 +64374,7 @@ function showModelError(msg){
   ov.innerHTML='<div style="max-width:430px;margin:20px;padding:26px 24px;border:1px solid var(--gold-line);border-radius:14px;background:linear-gradient(165deg,#161226,#0d0b18);text-align:center;color:#d8d3e8">'+
     '<h2 style="color:var(--gold-b);margin:0 0 10px;letter-spacing:3px;font-family:var(--kai);font-size:19px">还没有加载到你的角色模型</h2>'+
     '<p style="font-size:13px;line-height:1.9;color:#a9a3bd">角色固定使用游戏文件夹里的 <b style="color:#f0d488">character_modular.glb</b>，不会用任何替代模型。'+
-    (isFile?'<br><br>检测到你是直接双击打开的 <b>index.html</b>，浏览器不允许读取本地模型文件。<br>请先双击游戏文件夹里的「<b style="color:#f0d488">启动游戏.bat</b>」，再用浏览器打开 <b>http://localhost:8788/</b>。':'<br><br>请确认 character_modular.glb 还在游戏文件夹里（约 5.8MB），然后点下面重新加载。')+
+    (isFile?'<br><br>检测到你是直接双击打开的 <b>index.html</b>，浏览器不允许读取本地模型文件。<br>请先双击游戏文件夹里的「<b style="color:#f0d488">启动游戏.bat</b>」，再用浏览器打开 <b>http://localhost:8788/</b>。':'<br><br>请确认 character_modular.glb 还在游戏文件夹里（约 5.2MB），然后点下面重新加载。')+
     '</p>'+
     '<div style="display:flex;gap:10px;justify-content:center;margin-top:14px">'+
     '<button id="me-retry" style="background:linear-gradient(180deg,#e8c878,#c9a050);color:#14101c;border:none;border-radius:10px;padding:11px 24px;font-size:14px;font-weight:700;cursor:pointer">重新加载</button>'+
@@ -68551,3 +68551,4 @@ setInterval(pumpBackgroundAssets,1200);
 </script>
 </body>
 </html>
+
