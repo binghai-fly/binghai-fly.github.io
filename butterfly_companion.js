@@ -29,8 +29,12 @@
     var idleTime = 0;
     var shoulderDone = false;
     var fingerDone = false;
+    var fingerFrontReady = false;
+    var fingerArmStart = null;
     var perchTimer = 0;
     var modeTime = 0;
+    var FINGER_FRONT_HOLD = 0.16;   // 在面前停稳后再起手
+    var FINGER_RAISE_TIME = 0.90;   // 角色再缓慢抬手
     var pos = new THREE.Vector3();
     var target = new THREE.Vector3();
     var flightDir = new THREE.Vector3();
@@ -44,6 +48,8 @@
 
     var FLIGHT_LOCAL = new THREE.Vector3(0.58, 1.72, -0.30);
     var FORWARD = new THREE.Vector3(0, 0, -1); // Blender +Y 在 glTF 中是 -Z
+    // 两个页面的角色 glTF 前向轴不同：主游戏 -Z，关外角色 +Z（外层 rotation.y=π）。
+    var FRONT_Z = (opts && opts.frontZ !== undefined) ? opts.frontZ : -1;
 
     function ensurePlayer() {
       var current = getPlayerRoot();
@@ -118,6 +124,13 @@
         return out;
       }
       localToWorld(new THREE.Vector3(-0.13, 0.075, -0.005), tmpV); out.add(tmpV);
+      return out;
+    }
+
+    function frontAnchor(out) {
+      // 接蝶第一阶段：停在角色正前方、胸口偏上的位置。
+      fallbackPlayerPos(out);
+      localToWorld(new THREE.Vector3(0, 1.52, 0.58 * FRONT_Z), tmpV); out.add(tmpV);
       return out;
     }
 
@@ -224,6 +237,8 @@
     function startPerch(kind) {
       mode = kind === 'shoulder' ? 'toShoulder' : 'toFinger';
       modeTime = 0;
+      fingerFrontReady = false;
+      fingerArmStart = null;
       setAction('Fly');
     }
 
@@ -332,6 +347,12 @@
       });
     }
 
+    function fingerRaiseProgress() {
+      if (mode !== 'toFinger' || !fingerFrontReady || fingerArmStart === null) return 0;
+      var t = Math.min(1, Math.max(0, (modeTime - fingerArmStart) / FINGER_RAISE_TIME));
+      return t * t * (3 - 2 * t);
+    }
+
     function update(dt, ctx) {
       if (!ready) return;
       ctx = ctx || {};
@@ -347,9 +368,9 @@
       var canPerch = !!ctx.canPerch;
       var moving = !!ctx.moving;
 
-      // 接蝶手势：只在飞向手指 / 停到手指时接管左臂；其它状态完全交给玩家动画。
+      // 接蝶手势：先让蝴蝶在正前方停住，再接管左臂缓慢抬起；其它状态交给玩家动画。
       if (mode === 'toFinger' || mode === 'finger') {
-        applyReceivePose(mode === 'finger' ? 1 : Math.min(1, modeTime / 0.55));
+        applyReceivePose(mode === 'finger' ? 1 : fingerRaiseProgress());
       }
 
       if (mode === 'follow' || mode === 'toShoulder' || mode === 'toFinger') {
@@ -398,13 +419,38 @@
         modeTime += dt;
         if (perchTimer > 3.2) finishPerch();
       } else if (mode === 'toFinger') {
-        fingerAnchor(target);
-        stepTowards(target, dt, 8.5);
-        faceFlight(dt);
         modeTime += dt;
-        if (pos.distanceTo(target) < 0.10 || modeTime > 2.2) {
-          beginLanding('finger');
-          fingerDone = true;
+        if (!fingerFrontReady) {
+          // 第一阶段：先飞到角色面前停住，此时左手仍保持 Idle。
+          frontAnchor(target);
+          stepTowards(target, dt, 6.0);
+          faceFlight(dt);
+          if (pos.distanceTo(target) < 0.11) {
+            fingerFrontReady = true;
+            fingerArmStart = modeTime + FINGER_FRONT_HOLD;
+          } else if (modeTime > 1.25) {
+            // 兜底：就算蝴蝶绕路太慢，也不能一直举着手等。
+            fingerFrontReady = true;
+            fingerArmStart = modeTime + FINGER_FRONT_HOLD;
+          }
+        } else {
+          // 第二阶段：蝴蝶先在面前悬停，角色慢慢把手抬到它下方；
+          // 手抬到接近最终姿势后才让蝴蝶落到食指尖，避免“手还没起，蝶先下坠”。
+          var raiseT = fingerRaiseProgress();
+          if (raiseT < 0.72) {
+            frontAnchor(target);
+          } else {
+            fingerAnchor(target);
+          }
+          stepTowards(target, dt, 5.0);
+          faceFlight(dt);
+          if (raiseT >= 0.94 && pos.distanceTo(target) < 0.09) {
+            beginLanding('finger');
+            fingerDone = true;
+          } else if (modeTime > 4.2) {
+            beginLanding('finger');
+            fingerDone = true;
+          }
         }
       } else if (mode === 'finger') {
         fingerAnchor(target);
@@ -423,6 +469,9 @@
         idleTime: idleTime,
         modeTime: modeTime,
         perchTimer: perchTimer,
+        frontReady: fingerFrontReady,
+        armStart: fingerArmStart,
+        raise: mode === 'finger' ? 1 : +fingerRaiseProgress().toFixed(3),
         position: pos.toArray(),
         player: playerRoot ? playerRoot.name : null,
         anchors: ['arm','shoulder','index','hand','leftArm','leftFore','leftHand','leftIndex'].filter(function (k) { return !!anchors[k]; }),

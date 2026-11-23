@@ -103,8 +103,8 @@
   <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
   <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><em>B 回城</em></div>
 </div>
-<div class="topright"><b>WASD</b> 移动 · <b>Shift</b> 疾走<br><b>Space</b> 跳跃 · <b>F</b> 交谈<br><b>鼠标</b> 转向 · <b>C</b> 碰撞层<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>M</b> 音效 · <b>Esc</b> 暂停</div>
-<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift</span> 疾走　<span>Space</span> 跳　<span>F</span> 交谈<br><span>鼠标</span> 转向　<span>C</span> 显示碰撞层　<span>R</span> 回到起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>Esc</span> 暂停</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>F</b> 交谈 · <b>Esc</b> 暂停<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>M</b> 音效 · <b>C</b> 碰撞层</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>F</span> 交谈　<span>R</span> 回起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
 <div id="toast"></div>
 <div class="crosshair"></div>
 <div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
@@ -123,11 +123,11 @@
     <div class="bar"><i id="bar"></i></div>
     <button id="enter" disabled>载入中</button>
     <button id="backWutan">返回乌坦城</button>
-    <div class="note">从乌坦城南门出城，沿官道前行十八里，便到关山市镇。<br>60 MB Draco 场景 + 20 MB 碰撞层 + 玩家角色 + 六套骨骼 NPC<br>建议通过本地 HTTP 服务打开</div>
+    <div class="note">从乌坦城南门出城，沿官道前行十八里，便到关山市镇。<br>150 MB 场景 + 20 MB 碰撞层 + 玩家角色 + 六套骨骼 NPC<br>建议用「启动雁门关预览.bat」通过本地服务打开</div>
   </div>
 </div>
 
-<script src="./butterfly_companion.js?v=bf2"></script>
+<script src="./butterfly_companion.js?v=bf3"></script>
 <script type="importmap">
 {"imports":{"three":"./viewer/three.module.js","three/addons/":"./viewer/addons/"}}
 </script>
@@ -1013,17 +1013,96 @@ function setupPlayerCharacter(gltf){
     currentPlayerAction.play();
   }
   console.log('player animations:', Object.keys(playerActions).join(','));
+  attachIceWings(playerVisual);
+}
+
+function attachIceWings(model){
+  if(iceWings || !model) return;
+  iceWings = new THREE.Group();
+  iceWings.name = 'IceWings_Blender';
+  iceWings.position.set(0, 1.42, -0.26);
+  iceWings.scale.setScalar(0.72);
+  iceWings.visible = wingsOn;
+  model.add(iceWings);
+  loadGLTF('./ice_wings.glb').then(gltf=>{
+    const asset = gltf.scene;
+    iceWingR = asset.getObjectByName('WingR');
+    iceWingL = asset.getObjectByName('WingL');
+    if(!iceWingR || !iceWingL){
+      console.warn('[冰晶翼] 模型缺少 WingR / WingL');
+      return;
+    }
+    iceWings.add(iceWingL, iceWingR);
+    for(const half of [iceWingL, iceWingR]){
+      half.traverse(o=>{
+        if(!o.isMesh) return;
+        o.castShadow = false;
+        o.receiveShadow = false;
+        o.frustumCulled = false;
+        o.renderOrder = 3;
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for(const m of mats){
+          if(!m) continue;
+          m.transparent = true;
+          m.depthWrite = true;
+          m.side = THREE.DoubleSide;
+          if('opacity' in m) m.opacity = 0.88;
+          if('emissive' in m) m.emissiveIntensity = 0.18;
+          m.needsUpdate = true;
+        }
+      });
+    }
+    wingsReady = true;
+    if(wingPending){ wingPending = false; wingsOn = true; }
+    iceWings.visible = wingsOn;
+    showToast('❄ 冰晶翼就绪');
+  }).catch(err=>{
+    wingPending = false;
+    wingsReady = false;
+    console.warn('[冰晶翼] 载入失败', err);
+    showToast('冰翼载入失败');
+  });
+}
+
+function toggleWings(){
+  if(!wingsReady){
+    wingPending = true;
+    if(playerVisual) attachIceWings(playerVisual);
+    showToast('❄ 冰翼正在凝聚…');
+    return;
+  }
+  wingsOn = !wingsOn;
+  iceWings.visible = wingsOn;
+  if(!wingsOn){
+    keys.space = false;
+    playerVelocity.y = Math.min(playerVelocity.y, 0);
+  }
+  showToast(wingsOn ? '❄ 冰晶翼展开 · 空格上升 / Z 下降' : '❄ 冰晶翼收拢');
+}
+
+function updateWings(dt){
+  if(!iceWings) return;
+  const t = performance.now() / 1000;
+  const amp = wingsOn ? (keys.space ? 0.42 : 0.16) : 0.05;
+  const spd = wingsOn ? (keys.space ? 8.5 : 4.2) : 1.5;
+  const flap = Math.sin(t * spd) * amp;
+  if(iceWingR && iceWingL){
+    iceWingR.rotation.z = flap;
+    iceWingL.rotation.z = -flap;
+    iceWingR.rotation.y = 0.12 - flap * 0.1;
+    iceWingL.rotation.y = -0.12 + flap * 0.1;
+  }
 }
 
 async function loadPlayerCharacter(){
   setProgress(86, '载入玩家角色 9.5 MB');
   try {
-    const gltf = await loadGLTF('./character.glb');
+    const gltf = await loadGLTF('./deploy/character.glb');
     setupPlayerCharacter(gltf);
   } catch(err){
     console.warn('deploy/character.glb 载入失败，尝试原版 character.glb', err);
-    setProgress(86, '载入玩家角色 9.5 MB');
-    const gltf = await loadGLTF('./character.original.glb');
+    setProgress(86, '载入玩家角色 151 MB');
+    const gltf = await loadGLTF('./character.glb');
     setupPlayerCharacter(gltf);
   }
 }
@@ -1040,6 +1119,7 @@ function initButterflyCompanion(){
     loadGLTF,
     url: './butterfly.glb',
     getPlayerRoot: () => playerVisual,
+    frontZ: 1,
     scale: 0.92,
     debugName: '__butterfly'
   });
@@ -1074,7 +1154,8 @@ function updatePlayerAnimation(dt){
   const wasRunning = currentPlayerActionName === 'Run';
   const wasWalking = currentPlayerActionName === 'Walk';
   let desired = 'Idle';
-  if(jumpAnimTimer > 0) desired = 'Jump';
+  if(wingsOn && !playerOnFloor) desired = 'Idle';
+  else if(jumpAnimTimer > 0) desired = 'Jump';
   else if(smoothedHorizSpeed > (wasRunning ? 4.2 : 5.0)) desired = 'Run';
   else if(smoothedHorizSpeed > (wasWalking ? 0.2 : 0.55)) desired = 'Walk';
   setPlayerAction(desired);
@@ -1104,6 +1185,19 @@ const playerVelocity = new THREE.Vector3();
 let playerOnFloor = false;
 let jumpQueued = false;
 let jumpAnimTimer = 0;
+const MAX_JUMPS = 2;
+let jumpsLeft = MAX_JUMPS;
+let lastGroundedTimer = 0;
+let lastBlockNormalY = 1;
+let wingsOn = false;
+let wingsReady = false;
+let wingPending = false;
+let iceWings = null;
+let iceWingL = null;
+let iceWingR = null;
+const FLY_MAX_Y = 58;
+const tmpGroundRay = new THREE.Ray();
+const tmpGroundOrigin = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 const tmpForward = new THREE.Vector3();
 const tmpRight = new THREE.Vector3();
@@ -1201,7 +1295,7 @@ const dlgRayTarget = new THREE.Vector3();
 const dlgRay = new THREE.Ray();
 const dlgRayDir = new THREE.Vector3();
 
-const keys = {w:false,a:false,s:false,d:false,shift:false};
+const keys = {w:false,a:false,s:false,d:false,shift:false,space:false,z:false};
 
 function hideInteractionPrompt(){
   interactionCandidate = null;
@@ -1436,15 +1530,44 @@ function resetPlayer(){
   playerHorizSpeed = 0;
   smoothedHorizSpeed = 0;
   jumpAnimTimer = 0;
+  jumpsLeft = MAX_JUMPS;
+  lastGroundedTimer = 0;
+  stepUpCooldown = 0;
+  wingsOn = false;
+  keys.space = false;
+  keys.z = false;
+  if(iceWings) iceWings.visible = false;
   faceTargetYaw = Math.PI;
   camera.rotation.set(-0.04, 0, 0, 'YXZ');
   updatePlayerVisual(0, true);
   syncCamera();
 }
 
+function debugTeleport(x, z){
+  if(!worldOctree) return false;
+  tmpGroundOrigin.set(Number(x), 20, Number(z));
+  tmpGroundRay.set(tmpGroundOrigin, DOWN);
+  const hit = worldOctree.rayIntersect(tmpGroundRay);
+  if(!hit || !hit.position) return false;
+  const feetY = hit.position.y + 0.02;
+  player.start.set(Number(x), feetY + 0.35, Number(z));
+  player.end.copy(player.start).add(new THREE.Vector3(0, 1.05, 0));
+  playerVelocity.set(0, 0, 0);
+  playerOnFloor = false;
+  jumpsLeft = MAX_JUMPS;
+  lastGroundedTimer = 0;
+  stepUpCount = 0;
+  lastStepRise = 0;
+  stepUpCooldown = 0;
+  updatePlayerVisual(0, true);
+  syncCamera();
+  return true;
+}
+
 function resolveCollision(){
   if(!worldOctree) return false;
   let blocked = false;
+  lastBlockNormalY = 1;
   for(let i=0;i<4;i++){
     const result = worldOctree.capsuleIntersect(player);
     if(!result) break;
@@ -1454,6 +1577,7 @@ function resolveCollision(){
       if(playerVelocity.y < 0) playerVelocity.y = 0;
     } else {
       blocked = true;
+      lastBlockNormalY = Math.min(lastBlockNormalY, result.normal.y);
       const d = playerVelocity.dot(result.normal);
       if(d < 0) playerVelocity.addScaledVector(result.normal, -d);
     }
@@ -1478,12 +1602,35 @@ function resolveCampCollisions(){
   }
 }
 
+function groundProbe(maxDrop = 0.24){
+  if(!worldOctree) return false;
+  tmpGroundOrigin.set(player.end.x, player.start.y - 0.35 + 0.08, player.end.z);
+  tmpGroundRay.set(tmpGroundOrigin, DOWN);
+  const hit = worldOctree.rayIntersect(tmpGroundRay);
+  if(!hit || !hit.position) return false;
+  const drop = tmpGroundOrigin.y - hit.position.y;
+  const normalY = hit.normal ? hit.normal.y : 1;
+  return drop >= -0.03 && drop <= maxDrop && normalY > 0.52;
+}
+
 const STEP_HEIGHT = 0.50;
 const STEP_FORWARD = 0.42;
 const STEP_TOLERANCE = 0.06;
+const STEP_UP_COOLDOWN = 0.16;  // 真台阶也不连续瞬移，给视觉一个缓冲
 const STEP_UP_LIFT = STEP_HEIGHT + 0.02;
+let stepUpCount = 0;
+let lastStepRise = 0;
+let stepUpCooldown = 0;
+const tmpStepNormal = new THREE.Vector3();
+const tmpStepEdgeA = new THREE.Vector3();
+const tmpStepEdgeB = new THREE.Vector3();
 
-function tryStepUp(forwardDelta){
+function tryStepUp(forwardDelta, dt){
+  // 斜坡不是台阶：侧碰撞法线如果已经有明显向上的分量，就不能把整段坡
+  // 当成 0.5m 台阶“瞬移”上去。之前这里每个渲染帧最多前探 0.42m、
+  // 抬升 0.52m，上坡时等于每帧瞬移，才会突然飞上去。
+  if(lastBlockNormalY > 0.18) return false;
+  if(stepUpCooldown > 0) return false;
   const saveStart = player.start.clone();
   const saveEnd = player.end.clone();
   const feet = saveStart.y - 0.35;
@@ -1497,8 +1644,7 @@ function tryStepUp(forwardDelta){
   if(sideHit && sideHit.normal.y <= 0.5){
     player.start.copy(saveStart);
     player.end.copy(saveEnd);
-    playerOnFloor = true;
-    return;
+    return false;
   }
 
   // 从抬升后的脚底上方垂直向下探，找台阶顶面；必须比原地面高、且不超过 0.5m。
@@ -1507,23 +1653,44 @@ function tryStepUp(forwardDelta){
   const floorHit = worldOctree.rayIntersect(tmpStepRay);
   if(floorHit){
     const floorY = floorHit.position.y;
+    let floorNormalY = 1;
+    if(floorHit.triangle){
+      // three-mesh-bvh 的 rayIntersect 不返回 normal，只有三角形顶点；
+      // 用它算出真实法线，否则坡面会被当成“水平台阶顶面”而一路吸附上去。
+      tmpStepEdgeA.subVectors(floorHit.triangle.b, floorHit.triangle.a);
+      tmpStepEdgeB.subVectors(floorHit.triangle.c, floorHit.triangle.a);
+      tmpStepNormal.crossVectors(tmpStepEdgeA, tmpStepEdgeB);
+      if(tmpStepNormal.lengthSq() > 1e-8){
+        tmpStepNormal.normalize();
+        floorNormalY = Math.abs(tmpStepNormal.y);
+      }
+    }
     const rise = floorY - feet;
-    if(rise > 0.06 && rise <= STEP_HEIGHT + STEP_TOLERANCE){
+    // 台阶顶面必须近水平；连续斜坡（法线明显倾斜）交给胶囊碰撞正常滑行。
+    if(floorNormalY > 0.90 && rise > 0.06 && rise <= STEP_HEIGHT + STEP_TOLERANCE){
       player.start.y = floorY + 0.35;
       player.end.y = floorY + 0.35 + (saveEnd.y - saveStart.y);
       playerOnFloor = true;
-      return;
+      stepUpCount++;
+      lastStepRise = rise;
+      stepUpCooldown = STEP_UP_COOLDOWN;
+      return true;
     }
   }
 
   player.start.copy(saveStart);
   player.end.copy(saveEnd);
-  playerOnFloor = true;     // 没踩上台阶，回到原来的地面
+  return false;
 }
 
 function updatePlayer(dt){
-  const wasFloor = playerOnFloor;
+  // 下坡时胶囊会短暂离地，单帧 playerOnFloor=false 不应直接吞掉跳跃；
+  // 用向下的地面探针 + 0.18s  coyote 缓冲，脚刚离开坡面时仍可起跳。
+  stepUpCooldown = Math.max(0, stepUpCooldown - dt);
+  const wasFloor = playerOnFloor || groundProbe(0.24);
   playerOnFloor = false;
+  if(wasFloor) lastGroundedTimer = 0;
+  else lastGroundedTimer = Math.min(1, lastGroundedTimer + dt);
 
   camera.getWorldDirection(tmpForward);
   tmpForward.y = 0;
@@ -1538,18 +1705,29 @@ function updatePlayer(dt){
   if(keys.a) tmpWish.sub(tmpRight);
   if(tmpWish.lengthSq() > 0) tmpWish.normalize();
 
-  const speed = keys.shift ? 5.6 : 3.1;
+  const speed = (keys.shift ? 9.0 : 5.0) * (wingsOn ? 1.35 : 1);
   const accel = wasFloor ? 10 : 4;
   playerVelocity.x += (tmpWish.x * speed - playerVelocity.x) * Math.min(1, accel * dt);
   playerVelocity.z += (tmpWish.z * speed - playerVelocity.z) * Math.min(1, accel * dt);
 
-  if(jumpQueued && wasFloor){
-    playerVelocity.y = 4.8;
-    playerOnFloor = false;
-    jumpAnimTimer = 1.0;
+  if(jumpQueued){
+    // 二段跳：第一段必须在地面/coyote 窗口内，第二段可在空中接上。
+    if(!wingsOn && jumpsLeft > 0 && (wasFloor || lastGroundedTimer <= 0.18 || jumpsLeft < MAX_JUMPS)){
+      playerVelocity.y = jumpsLeft === MAX_JUMPS ? 8.0 : 7.4;
+      jumpsLeft--;
+      playerOnFloor = false;
+      jumpAnimTimer = 1.0;
+    }
+    jumpQueued = false;
   }
-  jumpQueued = false;
-  playerVelocity.y -= 9.8 * dt;
+
+  if(wingsOn){
+    // 与乌坦城冰翼一致：空格上升、Z 下降、松开缓慢下沉。
+    const targetVy = keys.space ? 7.2 : (keys.z ? -5.2 : -1.4);
+    playerVelocity.y += (targetVy - playerVelocity.y) * Math.min(1, 6 * dt);
+  } else {
+    playerVelocity.y -= 24 * dt;
+  }
 
   tmpDelta.copy(playerVelocity).multiplyScalar(dt);
   const steps = Math.max(1, Math.ceil(tmpDelta.length() / 0.08));
@@ -1558,11 +1736,25 @@ function updatePlayer(dt){
     player.translate(tmpDelta);
     const blocked = resolveCollision();
     resolveCampCollisions();
-    if(blocked && wasFloor) tryStepUp(tmpDelta);
+    if(blocked && wasFloor && !wingsOn) tryStepUp(tmpDelta, dt);
   }
 
+  if(wingsOn && player.start.y > FLY_MAX_Y){
+    const over = player.start.y - FLY_MAX_Y;
+    player.start.y -= over;
+    player.end.y -= over;
+    if(playerVelocity.y > 0) playerVelocity.y = 0;
+  }
   if(player.start.y < -40){
     resetPlayer();
+    return;
+  }
+
+  // 碰撞后补一次地面探针：下坡/台阶边缘的短暂离地不会让状态一直悬空。
+  if(playerVelocity.y <= 0.1) playerOnFloor = playerOnFloor || groundProbe(0.24);
+  if(playerOnFloor){
+    jumpsLeft = MAX_JUMPS;
+    lastGroundedTimer = 0;
   }
 
   playerHorizSpeed = Math.hypot(playerVelocity.x, playerVelocity.z);
@@ -1855,7 +2047,7 @@ async function boot(){
     buildQuestCamp();
     console.timeEnd('boot-collision-total');
 
-    setProgress(12, '载入雁门关场景 60 MB');
+    setProgress(12, '载入雁门关场景 150 MB');
     console.time('boot-yanmen-glb');
     const sceneGltf = await loadGLTF('./yanmen.glb', e=>{
       if(e.total){
@@ -1940,10 +2132,20 @@ addEventListener('keydown', e=>{
   if(e.code === 'KeyA') keys.a = true;
   if(e.code === 'KeyS') keys.s = true;
   if(e.code === 'KeyD') keys.d = true;
-  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = true;
+  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE') keys.shift = true;
+  if(e.code === 'KeyZ') keys.z = true;
   if(e.code === 'Space'){
     if(controls.isLocked) e.preventDefault();
-    jumpQueued = true;
+    if(e.repeat) return;
+    if(wingsOn){
+      keys.space = true;
+    } else {
+      jumpQueued = true;
+    }
+  }
+  if(e.code === 'KeyH' && !e.repeat && controls.isLocked){
+    e.preventDefault();
+    toggleWings();
   }
   if(e.code === 'KeyF' && controls.isLocked){
     e.preventDefault();
@@ -1965,7 +2167,9 @@ addEventListener('keyup', e=>{
   if(e.code === 'KeyA') keys.a = false;
   if(e.code === 'KeyS') keys.s = false;
   if(e.code === 'KeyD') keys.d = false;
-  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight') keys.shift = false;
+  if(e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyE') keys.shift = false;
+  if(e.code === 'KeyZ') keys.z = false;
+  if(e.code === 'Space') keys.space = false;
 });
 
 addEventListener('resize', ()=>{
@@ -1984,6 +2188,7 @@ renderer.setAnimationLoop(()=>{
   else updateCamera(dt);
   updatePlayerVisual(dt);
   updatePlayerAnimation(dt);
+  updateWings(dt);
   if (butterflyCompanion) {
     butterflyCompanion.update(dt, {
       isIdle: controls.isLocked && !dialogue.active && playerOnFloor &&
@@ -2015,7 +2220,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
 </script>
 </body>
 </html>
