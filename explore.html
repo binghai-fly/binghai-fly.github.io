@@ -1097,7 +1097,7 @@ function updateWings(dt){
 async function loadPlayerCharacter(){
   setProgress(86, '载入玩家角色 9.5 MB');
   try {
-    const gltf = await loadGLTF('./deploy/character.glb');
+    const gltf = await loadGLTF('./character.glb');
     setupPlayerCharacter(gltf);
   } catch(err){
     console.warn('deploy/character.glb 载入失败，尝试原版 character.glb', err);
