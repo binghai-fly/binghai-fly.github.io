@@ -103,8 +103,8 @@
   <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
   <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><em>B 回城</em></div>
 </div>
-<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>F</b> 交谈 · <b>Esc</b> 暂停<br><b>R</b> 回起点 · <b>B</b> 回乌坦城 · <b>M</b> 音效 · <b>C</b> 碰撞层</div>
-<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>F</span> 交谈　<span>R</span> 回起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>滚轮</b> 缩放 · <b>F</b> 交谈<br><b>Esc</b> 暂停 · <b>R</b> 回起点 · <b>B</b> 回乌坦城<br><b>M</b> 音效 · <b>C</b> 碰撞层</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>滚轮</span> 缩放视角　<span>F</span> 交谈　<span>R</span> 回起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
 <div id="toast"></div>
 <div class="crosshair"></div>
 <div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
@@ -1100,10 +1100,8 @@ async function loadPlayerCharacter(){
     const gltf = await loadGLTF('./character.glb');
     setupPlayerCharacter(gltf);
   } catch(err){
-    console.warn('deploy/character.glb 载入失败，尝试原版 character.glb', err);
-    setProgress(86, '载入玩家角色 151 MB');
-    const gltf = await loadGLTF('./character.glb');
-    setupPlayerCharacter(gltf);
+    console.warn('character.glb 载入失败', err);
+    throw err;
   }
 }
 
@@ -1126,9 +1124,9 @@ function initButterflyCompanion(){
   butterflyCompanion.load().catch(err => console.warn('[butterfly] load failed', err));
 }
 
-function setPlayerAction(name, fade = 0.18){
+function setPlayerAction(name, fade = 0.18, force = false){
   const next = playerActions[name];
-  if(!next || next === currentPlayerAction) return;
+  if(!next || (!force && next === currentPlayerAction)) return;
   next.reset();
   next.enabled = true;
   next.setEffectiveTimeScale(1);
@@ -1141,7 +1139,7 @@ function setPlayerAction(name, fade = 0.18){
     next.clampWhenFinished = false;
   }
   next.fadeIn(fade).play();
-  if(currentPlayerAction) currentPlayerAction.fadeOut(fade);
+  if(currentPlayerAction && currentPlayerAction !== next) currentPlayerAction.fadeOut(fade);
   currentPlayerAction = next;
   currentPlayerActionName = name;
 }
@@ -1164,6 +1162,7 @@ function updatePlayerAnimation(dt){
 
 let playerVisualY = null;
 let faceTargetYaw = Math.PI;
+let wingLean = 0;
 
 function updatePlayerVisual(dt, immediate = false){
   if(!playerVisual) return;
@@ -1176,6 +1175,14 @@ function updatePlayerVisual(dt, immediate = false){
   if(delta < 0) delta += Math.PI * 2;
   delta -= Math.PI;
   playerVisual.rotation.y += delta * (1 - Math.exp(-12 * dt));
+
+  // 与乌坦城一致：飞行时身体前倾，移动时倾角更大；落回地面后回正。
+  // 用方向键判定是否在移动，不用实际水平速度，避免贴墙减速时身体突然回正。
+  const flightPose = wingsOn && (!playerOnFloor || keys.space);
+  const movingInAir = !!(keys.w || keys.a || keys.s || keys.d);
+  const leanTarget = flightPose ? (movingInAir ? (keys.shift ? 1.25 : 1.05) : 0.5) : 0;
+  wingLean += (leanTarget - wingLean) * Math.min(1, Math.max(0, dt) * 5);
+  playerVisual.rotation.x = wingLean;
 }
 
 
@@ -1216,6 +1223,8 @@ const CAMERA_DISTANCE = 4.2;
 const CAMERA_FOCUS_HEIGHT = 1.35;
 const CAMERA_MIN_DISTANCE = 0.22;
 const CAMERA_COLLISION_SKIN = 0.18;
+const CAMERA_ZOOM_MIN = 0.45;
+const CAMERA_ZOOM_MAX = 2.4;
 const cameraFocus = new THREE.Vector3();
 const cameraFocusTarget = new THREE.Vector3();
 const cameraDir = new THREE.Vector3();
@@ -1223,6 +1232,7 @@ const cameraDesired = new THREE.Vector3();
 const cameraRay = new THREE.Ray();
 const cameraRayDir = new THREE.Vector3();
 let cameraDistance = CAMERA_DISTANCE;
+let cameraZoom = 1;
 let cameraInitialized = false;
 
 function getPlayerFocus(out){
@@ -1233,13 +1243,13 @@ function getPlayerFocus(out){
 
 function placeCamera(focus, dt = 0){
   camera.getWorldDirection(cameraDir);
-  let targetDistance = CAMERA_DISTANCE;
+  let targetDistance = CAMERA_DISTANCE * cameraZoom;
   if(worldOctree){
     // 从角色焦点向相机位置打一条射线；撞到墙/柱子就把相机拉近，避免镜头穿模。
     cameraRayDir.copy(cameraDir).multiplyScalar(-1);
     cameraRay.set(focus, cameraRayDir);
     const hit = worldOctree.rayIntersect(cameraRay);
-    if(hit && hit.distance < CAMERA_DISTANCE){
+    if(hit && hit.distance < targetDistance){
       targetDistance = Math.max(CAMERA_MIN_DISTANCE, hit.distance - CAMERA_COLLISION_SKIN);
     }
   }
@@ -1258,7 +1268,7 @@ function placeCamera(focus, dt = 0){
 
 function syncCamera(immediate = true){
   getPlayerFocus(cameraFocus);
-  cameraDistance = CAMERA_DISTANCE;
+  cameraDistance = CAMERA_DISTANCE * cameraZoom;
   placeCamera(cameraFocus, 0);
   cameraInitialized = true;
 }
@@ -1536,6 +1546,7 @@ function resetPlayer(){
   wingsOn = false;
   keys.space = false;
   keys.z = false;
+  wingLean = 0;
   if(iceWings) iceWings.visible = false;
   faceTargetYaw = Math.PI;
   camera.rotation.set(-0.04, 0, 0, 'YXZ');
@@ -1717,6 +1728,9 @@ function updatePlayer(dt){
       jumpsLeft--;
       playerOnFloor = false;
       jumpAnimTimer = 1.0;
+      // 二段跳时 Jump 可能还是当前动作；必须强制 reset 才会重新播放，
+      // 否则只有胶囊/模型整体上移，看不到起跳姿势。
+      setPlayerAction('Jump', 0.12, true);
     }
     jumpQueued = false;
   }
@@ -2097,6 +2111,14 @@ controls.addEventListener('unlock', ()=>{
 });
 controls.addEventListener('error', ()=>{ loadmsg.textContent = '鼠标锁定失败，请点击页面重试'; });
 
+// 滚轮缩放第三人称相机；向上滚拉近，向下滚拉远。
+canvas.addEventListener('wheel', e=>{
+  if(!controls.isLocked || dialogue.active) return;
+  e.preventDefault();
+  if(!e.deltaY) return;
+  cameraZoom = Math.max(CAMERA_ZOOM_MIN, Math.min(CAMERA_ZOOM_MAX, cameraZoom + Math.sign(e.deltaY) * 0.12));
+}, { passive:false });
+
 addEventListener('keydown', e=>{
   if(e.code === 'KeyM'){
     e.preventDefault();
@@ -2220,7 +2242,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, wingLean:()=>wingLean, cameraZoom:()=>cameraZoom, setCameraZoom:(v)=>{cameraZoom=Math.max(CAMERA_ZOOM_MIN,Math.min(CAMERA_ZOOM_MAX,Number(v)||1));}, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
 </script>
 </body>
 </html>
