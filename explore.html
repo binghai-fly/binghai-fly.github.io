@@ -29,9 +29,59 @@
   #worldBridge .wr-hero b{color:#e9dfc2;font-weight:500;letter-spacing:2px}
   #worldBridge .wr-hero span+span:before{content:"·";margin:0 6px;color:#687167}
   #worldBridge .wr-hero em{margin-left:10px;padding-left:10px;border-left:1px solid rgba(216,182,120,.2);color:#d8b678;font-style:normal}
-  #backWutan{margin-top:10px;width:100%;padding:10px 20px;background:rgba(216,182,120,.06);border:1px solid rgba(216,182,120,.28);color:#bfae8c;font-size:11px;letter-spacing:3px;cursor:pointer;border-radius:1px;transition:.25s;font-family:inherit}
-  #backWutan:hover{background:rgba(216,182,120,.16);color:#f3e3bd}
   @media(max-width:760px){#worldBridge{top:12px;min-width:0;width:calc(100vw - 24px);padding:7px 10px}#worldBridge .wr-route{font-size:9px;letter-spacing:1px}#worldBridge .wr-hero{font-size:8px}#worldBridge .wr-hero em{display:none}}
+  /* 背包 / 舆图共用的只读面板；不释放指针锁，靠 B / M / Esc 关闭。 */
+  #uiOverlay{position:fixed;inset:0;z-index:42;display:none;align-items:center;justify-content:center;padding:22px;background:rgba(5,9,11,.78);backdrop-filter:blur(7px)}
+  #uiOverlay.show{display:flex}
+  .ui-card{width:min(880px,92vw);max-height:84vh;display:flex;flex-direction:column;background:linear-gradient(160deg,rgba(24,29,25,.98),rgba(11,15,17,.98));border:1px solid rgba(216,182,120,.4);box-shadow:0 26px 90px rgba(0,0,0,.62),inset 0 0 40px rgba(216,182,120,.03);border-radius:3px;overflow:hidden}
+  .ui-card.map-card{height:min(84vh,620px)}
+  .ui-card.map-card .ui-body{flex:1;overflow:hidden}
+  .ui-card.map-card .map-wrap{height:100%}
+  .ui-card.map-card .map-stage{height:100%;min-height:0;aspect-ratio:auto}
+  .ui-card.map-card .map-side{overflow:auto;padding-right:4px}
+  .ui-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:18px 22px 14px;border-bottom:1px solid rgba(216,182,120,.18)}
+  .ui-head h2{font-family:"STSong","SimSun",serif;font-weight:500;font-size:26px;letter-spacing:5px;color:#f0e4c6;margin:0 0 3px}
+  .ui-head p{margin:0;font-size:10px;letter-spacing:1.4px;color:#9ca394}
+  .ui-head em{font-style:normal;font-size:10px;letter-spacing:1.5px;color:#d8b678;white-space:nowrap;padding-top:7px}
+  .ui-body{padding:16px 22px 18px;overflow:auto;min-height:120px}
+  .ui-foot{padding:10px 22px 13px;border-top:1px solid rgba(216,182,120,.15);font-size:10px;letter-spacing:.8px;color:#9a9f91;display:flex;gap:16px;flex-wrap:wrap}
+  .ui-foot b{color:#e5d6b4;font-weight:500}
+  .inv-sum{font-size:11px;color:#cfc3a5;letter-spacing:.8px;margin-bottom:12px}
+  .inv-section{font-size:10px;color:#d8b678;letter-spacing:2px;margin:4px 0 7px}
+  .inv-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(142px,1fr));gap:8px}
+  .inv-card{display:flex;align-items:center;gap:9px;padding:9px 10px;background:rgba(235,225,198,.045);border:1px solid rgba(216,182,120,.18);border-radius:2px;min-height:42px}
+  .inv-card .ic{font-size:21px;line-height:1;filter:saturate(.8)}
+  .inv-card .nm{font-size:11px;color:#e9ddc0;letter-spacing:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .inv-card .ct{margin-left:auto;font-size:10px;color:#b9a77f}
+  .belt-row{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .belt-slot{flex:1;min-width:120px;display:flex;align-items:center;gap:8px;padding:7px 9px;border:1px dashed rgba(216,182,120,.3);color:#9b9d90;font-size:10px}
+  .belt-slot.on{border-style:solid;color:#e9ddc0;background:rgba(216,182,120,.06)}
+  .belt-slot small{font-size:9px;color:#d8b678;letter-spacing:1px}
+  .inv-empty{padding:26px 10px;text-align:center;color:#888e80;font-size:12px;letter-spacing:1px;line-height:2}
+  .map-wrap{display:grid;grid-template-columns:minmax(0,1fr) 174px;gap:14px;align-items:stretch}
+  @media(max-width:760px){.map-wrap{grid-template-columns:1fr}.map-side{display:none}.ui-card{max-height:90vh}.ui-body{padding:12px 14px}.ui-head{padding:14px 16px 11px}.ui-head h2{font-size:22px}.inv-grid{grid-template-columns:repeat(auto-fill,minmax(124px,1fr))}}
+  .map-stage{position:relative;min-height:300px;aspect-ratio:1000/620;border:1px solid rgba(216,182,120,.25);background:radial-gradient(circle at 52% 42%,#31392b,#151c18 66%,#0b1110);overflow:hidden;border-radius:2px}
+  .map-svg{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+  .map-marker{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none;white-space:nowrap;text-shadow:0 1px 5px #000}
+  .map-marker i{display:block;width:8px;height:8px;border-radius:50%;background:#e4dcc6;border:1px solid rgba(0,0,0,.3);box-shadow:0 0 0 2px rgba(228,220,198,.12)}
+  .map-marker b{font-size:10px;font-weight:500;color:#ded4ba;letter-spacing:1px}
+  .map-marker.quest i{background:#e46c52;box-shadow:0 0 0 3px rgba(228,108,82,.18),0 0 12px rgba(228,108,82,.45)}
+  .map-marker.quest b{color:#f0b080}
+  .map-marker.player i{width:13px;height:13px;background:#f1c76c;border:2px solid #2b2418;box-shadow:0 0 0 3px rgba(241,199,108,.2),0 0 16px rgba(241,199,108,.55)}
+  .map-marker.player b{color:#ffe3a4;font-size:11px;letter-spacing:2px}
+  .map-marker.npc i{width:4px;height:4px;background:#b7bca9;opacity:.62;box-shadow:none}
+  .map-marker.npc b{display:none}
+  .map-side{padding:2px 0 0;font-size:10px;color:#a8ad9f;line-height:1.85}
+  .map-side h3{font-size:11px;color:#d8b678;letter-spacing:1.5px;font-weight:500;margin:0 0 6px}
+  .map-side .hint{margin-bottom:12px;color:#7f8779}
+  .map-legend{display:flex;align-items:center;gap:7px;margin:5px 0;color:#c4c6b7}
+  .map-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;background:#e4dcc6}
+  .map-legend i.player{background:#f1c76c}
+  .map-legend i.quest{background:#e46c52}
+  .map-compass{position:absolute;right:10px;top:10px;width:28px;height:28px;border:1px solid rgba(216,182,120,.45);display:flex;align-items:center;justify-content:center;color:#e7d6ad;font-size:10px;letter-spacing:1px;background:rgba(8,12,11,.45);z-index:2}
+  .map-compass:before{content:"";position:absolute;top:2px;border-left:3px solid transparent;border-right:3px solid transparent;border-bottom:6px solid #d8b678}
+  .map-area{padding:7px 9px;background:rgba(216,182,120,.06);border-left:2px solid rgba(216,182,120,.5);color:#e0d2b2;margin:8px 0}
+  .map-area small{display:block;color:#8c9284;font-size:9px;letter-spacing:1px;margin-bottom:3px}
   #questTrack{position:fixed;left:26px;top:150px;z-index:16;width:min(238px,32vw);padding:9px 12px 10px;border:1px solid rgba(216,182,120,.4);border-radius:3px;background:linear-gradient(165deg,rgba(28,22,18,.94),rgba(14,12,20,.92));box-shadow:0 8px 26px rgba(0,0,0,.42);display:none;pointer-events:none;color:#d9c9a5;letter-spacing:.4px;backdrop-filter:blur(10px)}
   #questTrack.on{display:block}
   #questTrack.ready{border-color:rgba(255,214,100,.82);box-shadow:0 8px 30px rgba(255,196,80,.12)}
@@ -101,10 +151,10 @@
 </div>
 <div id="worldBridge">
   <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
-  <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><em>B 回城</em></div>
+  <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><span id="heroHp">100/100 气血</span><em>B 背包 · M 舆图</em></div>
 </div>
-<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>滚轮</b> 缩放 · <b>F</b> 交谈<br><b>Esc</b> 暂停 · <b>R</b> 回起点 · <b>B</b> 回乌坦城<br><b>M</b> 音效 · <b>C</b> 碰撞层</div>
-<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>滚轮</span> 缩放视角　<span>F</span> 交谈　<span>R</span> 回起点　<span>B</span> 回乌坦城　<span>M</span> 音效开关　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>滚轮</b> 缩放 · <b>F</b> 交谈<br><b>B</b> 背包 · <b>M</b> 舆图 · <b>R</b> 休整 · <b>V</b> 音效<br><b>G</b> 回起点 · <b>C</b> 碰撞层 · <b>Esc</b> 暂停</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>滚轮</span> 缩放视角　<span>B</span> 背包　<span>M</span> 舆图　<span>R</span> 休整　<span>F</span> 交谈　<span>V</span> 音效　<span>G</span> 回起点　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
 <div id="toast"></div>
 <div class="crosshair"></div>
 <div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
@@ -112,6 +162,17 @@
   <div class="dlg-head"><span class="dlg-name" id="dlgName">—</span><span class="dlg-role" id="dlgRole"></span><span class="dlg-count" id="dlgCount"></span></div>
   <div class="dlg-text" id="dlgText"></div>
   <div class="dlg-foot"><span><b>Space / F</b> 继续</span><span><b>Esc</b> 离开</span></div>
+</div>
+
+<div id="uiOverlay">
+  <div class="ui-card">
+    <div class="ui-head">
+      <div><h2 id="uiTitle">背包</h2><p id="uiSub">与乌坦城共用同一份行囊</p></div>
+      <em id="uiHint">B 关闭</em>
+    </div>
+    <div class="ui-body" id="uiBody"></div>
+    <div class="ui-foot" id="uiFoot"><span><b>B</b> 关闭</span><span><b>M</b> 舆图</span><span>此处只查看，不消耗物品</span></div>
+  </div>
 </div>
 
 <div id="overlay">
@@ -122,7 +183,6 @@
     <div id="loadmsg">正在读取人物清单</div>
     <div class="bar"><i id="bar"></i></div>
     <button id="enter" disabled>载入中</button>
-    <button id="backWutan">返回乌坦城</button>
     <div class="note">从乌坦城南门出城，沿官道前行十八里，便到关山市镇。<br>150 MB 场景 + 20 MB 碰撞层 + 玩家角色 + 六套骨骼 NPC<br>建议用「启动雁门关预览.bat」通过本地服务打开</div>
   </div>
 </div>
@@ -207,10 +267,17 @@ const dlgName = document.getElementById('dlgName');
 const dlgRole = document.getElementById('dlgRole');
 const dlgCount = document.getElementById('dlgCount');
 const dlgText = document.getElementById('dlgText');
-const backWutanBtn = document.getElementById('backWutan');
 const heroNameEl = document.getElementById('heroName');
 const heroRealmEl = document.getElementById('heroRealm');
 const heroGoldEl = document.getElementById('heroGold');
+const heroHpEl = document.getElementById('heroHp');
+const uiOverlay = document.getElementById('uiOverlay');
+const uiTitle = document.getElementById('uiTitle');
+const uiSub = document.getElementById('uiSub');
+const uiHint = document.getElementById('uiHint');
+const uiBody = document.getElementById('uiBody');
+const uiFoot = document.getElementById('uiFoot');
+let activePanel = null;
 const questTrackEl = document.getElementById('questTrack');
 const qtStateEl = document.getElementById('qt-state');
 const qtTitleEl = document.getElementById('qt-title');
@@ -229,10 +296,9 @@ function showToast(message, ms = 2600){
 }
 const FROM_WUTAN = new URLSearchParams(location.search).get('from') === 'wutan';
 
-// 两块地图共用同一份斗破存档：乌坦城负责修炼/战斗，这里负责关外任务与回城落点。
+// 两块地图共用同一份斗破存档：乌坦城负责修炼/战斗，这里负责关外任务与休整。
 const SAVE_KEY = 'dpcq_save_v4';
 const CAMP_POS = {x:31.5, z:57.4};
-const WUTAN_RETURN = {x:0, z:64};
 const REALM_NAMES = ['斗之气','斗者','斗师','大斗师','斗灵','斗王','斗皇','斗宗','斗尊','斗圣','斗帝'];
 const STAR_NAMES = ['一','二','三','四','五','六','七','八','九'];
 
@@ -266,11 +332,14 @@ function writeWutanSave(save){
 
 function syncWutanHud(){
   const saved = readWutanSave();
-  let p = (saved && saved.p) ? saved.p : {name:'萧炎',ri:0,si:0,gold:0};
+  let p = (saved && saved.p) ? saved.p : {name:'萧炎',ri:0,si:0,gold:0,hp:100,mhp:100};
   const realm = p.ri === 10 ? '斗帝' : (REALM_NAMES[p.ri] || REALM_NAMES[0]) + '·' + (STAR_NAMES[p.si] || STAR_NAMES[0]) + '星';
   heroNameEl.textContent = p.name || '萧炎';
   heroRealmEl.textContent = realm;
   heroGoldEl.textContent = (p.gold || 0) + ' 金';
+  const mhp = Number.isFinite(p.mhp) ? p.mhp : 100;
+  const hp = Number.isFinite(p.hp) ? p.hp : mhp;
+  heroHpEl.textContent = Math.max(0, Math.round(hp)) + '/' + Math.max(1, Math.round(mhp)) + ' 气血';
 }
 syncWutanHud();
 
@@ -310,21 +379,248 @@ function updateYanmenQuest(mutator){
   return q;
 }
 
-function returnToWutan(){
-  if(dialogue.active) endDialogue();
-  const save = readWutanSave();
-  if(save){
-    // 回城落点固定在南门内侧，避免从关外回来时落在城门外或旧存档位置。
-    save.x = WUTAN_RETURN.x;
-    save.z = WUTAN_RETURN.z;
-    save.y = 0;
-    save.lastArea = 'wutan';
-    writeWutanSave(save);
-  }
-  try{document.exitPointerLock?.()}catch(err){}
-  location.href = 'index.html?from=yanmen';
+// ============ 关外只读背包 / 区域舆图 / 休整 ============
+const MAP_BOUNDS = {minX:-210, maxX:220, minZ:-190, maxZ:260};
+const REST_HEAL_RATIO = 0.28;
+const REST_QI_RATIO = 0.18;
+const REST_COOLDOWN = 8;
+let restReadyAt = 0;
+
+function escapeHtml(value){
+  return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
 }
-backWutanBtn.addEventListener('click', returnToWutan);
+
+function itemGlyph(name){
+  if(/丹|药|散|膏|草/.test(name)) return '🧪';
+  if(/剑|刀|匕首|枪|甲|衣|弓/.test(name)) return '🗡️';
+  if(/茶|酿|酒|水/.test(name)) return '🍵';
+  if(/晶核|玉|石/.test(name)) return '💎';
+  if(/卷|书|功法|图/.test(name)) return '📜';
+  if(/锦|帕|布/.test(name)) return '🧵';
+  return '📦';
+}
+
+function clearMoveKeys(){
+  keys.w = keys.a = keys.s = keys.d = keys.shift = keys.space = keys.z = false;
+  playerVelocity.x = 0;
+  playerVelocity.z = 0;
+  playerHorizSpeed = 0;
+  smoothedHorizSpeed = 0;
+}
+
+function mapPoint(x, z){
+  const nx = (x - MAP_BOUNDS.minX) / (MAP_BOUNDS.maxX - MAP_BOUNDS.minX);
+  const nz = (z - MAP_BOUNDS.minZ) / (MAP_BOUNDS.maxZ - MAP_BOUNDS.minZ);
+  return {
+    x: Math.max(3, Math.min(97, nx * 100)),
+    y: Math.max(3, Math.min(97, nz * 100))
+  };
+}
+
+function mapPath(points){
+  return points.map(([x, z], i)=>{
+    const p = mapPoint(x, z);
+    return (i ? 'L' : 'M') + (p.x * 10).toFixed(1) + ' ' + (p.y * 6.2).toFixed(1);
+  }).join(' ');
+}
+
+function yanmenAreaName(x, z){
+  if(z < -100) return '北岭关隘';
+  if(z < -22) return '关城内城';
+  if(z < 70) return '关山市镇';
+  if(x > 90) return '东溪水乡';
+  if(x < -80) return '西竹海';
+  if(z > 170) return x < -80 ? '南野枫庐' : '南野牧马';
+  return '关外山道';
+}
+
+function mapMarker(name, x, z, cls = ''){
+  const p = mapPoint(x, z);
+  return `<div class="map-marker ${cls}" style="left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%"><i></i><b>${escapeHtml(name)}</b></div>`;
+}
+
+function renderBackpackPanel(){
+  const save = readWutanSave();
+  const p = (save && save.p) ? save.p : {};
+  const inv = Array.isArray(p.inv) ? p.inv : [];
+  const belt = Array.isArray(p.belt) ? p.belt.slice(0, 3) : [];
+  const counts = new Map();
+  inv.forEach(name=>{
+    if(!name) return;
+    counts.set(name, (counts.get(name) || 0) + 1);
+  });
+  const items = Array.from(counts.entries()).sort((a, b)=>b[1] - a[1] || a[0].localeCompare(b[0]));
+  const gold = Number.isFinite(p.gold) ? p.gold : 0;
+  const mhp = Number.isFinite(p.mhp) ? p.mhp : 100;
+  const hp = Number.isFinite(p.hp) ? p.hp : mhp;
+  const mqi = Number.isFinite(p.mqi) ? p.mqi : 100;
+  const qi = Number.isFinite(p.qi) ? p.qi : mqi;
+  const beltHtml = [0,1,2].map(i=>{
+    const name = belt[i];
+    return `<div class="belt-slot ${name ? 'on' : ''}"><small>${6+i}</small><span>${name ? escapeHtml(name) : '空快捷栏'}</span></div>`;
+  }).join('');
+  const cards = items.length
+    ? items.map(([name, count])=>`<div class="inv-card"><span class="ic">${itemGlyph(name)}</span><span class="nm">${escapeHtml(name)}</span><span class="ct">×${count}</span></div>`).join('')
+    : '<div class="inv-empty">行囊空空如也。<br>回乌坦城集市买些药、茶或兵刃，关外会同步显示在这里。</div>';
+
+  uiTitle.textContent = '🎒 背包';
+  uiSub.textContent = '乌坦城与关外共用同一份行囊';
+  uiHint.textContent = 'B 关闭';
+  uiBody.innerHTML = `
+    <div class="inv-sum">💰 ${Math.max(0, Math.round(gold))} 金 · ❤️ ${Math.max(0, Math.round(hp))}/${Math.max(1, Math.round(mhp))} 气血 · ⚡ ${Math.max(0, Math.round(qi))}/${Math.max(1, Math.round(mqi))} 斗气 · 物品 ${inv.length} 件</div>
+    <div class="inv-section">快捷栏</div>
+    <div class="belt-row">${beltHtml}</div>
+    <div class="inv-section">背包物品</div>
+    <div class="inv-grid">${cards}</div>`;
+  uiFoot.innerHTML = '<span><b>B</b> 关闭</span><span><b>M</b> 舆图</span><span>只查看，不消耗物品</span>';
+}
+
+function renderMapPanel(){
+  const q = getYanmenQuest();
+  const px = player.start.x, pz = player.start.z;
+  const area = yanmenAreaName(px, pz);
+  const landmarks = [
+    ['北岭关隘', 0, -150],
+    ['关城内城', 0, -8],
+    ['关山市镇', 0, 40, 'player-near'],
+    ['山贼营地', CAMP_POS.x, CAMP_POS.z],
+    ['东溪水乡', 165, 80],
+    ['西竹海', -130, 35],
+    ['南野枫庐', -176, 204],
+    ['南野牧马', 22, 220],
+    ['东南溪口', 172, 212]
+  ];
+  const markerHtml = landmarks.map(([name, x, z, cls]) => mapMarker(name, x, z, cls || '')).join('')
+    + npcRecords.map(record=>{
+        const p = mapPoint(record.visual.position.x, record.visual.position.z);
+        return `<div class="map-marker npc" style="left:${p.x.toFixed(2)}%;top:${p.y.toFixed(2)}%"><i></i></div>`;
+      }).join('')
+    + mapMarker('你', px, pz, 'player');
+  let questMarker = '';
+  let questHint = '当前没有进行中的关外任务';
+  if(q.stage === 1){
+    questMarker = mapMarker('山贼', CAMP_POS.x, CAMP_POS.z, 'quest');
+    questHint = '任务目标 · 清剿山贼营地';
+  } else if(q.stage === 2){
+    const cx = Number.isFinite(q.crateX) ? q.crateX : CAMP_POS.x;
+    const cz = Number.isFinite(q.crateZ) ? q.crateZ : CAMP_POS.z;
+    questMarker = mapMarker('货箱', cx, cz, 'quest');
+    questHint = '任务目标 · 取回被劫货箱';
+  } else if(q.stage === 3){
+    questHint = '关外部分已完成 · 货箱待交回乌坦城沈砚';
+  }
+  const roadNorth = mapPath([[0, 40], [0, -8], [0, -150]]);
+  const roadEast = mapPath([[0, 40], [31, 57], [165, 80], [172, 212]]);
+  const roadWest = mapPath([[0, 40], [-130, 35], [-176, 204]]);
+  const roadSouth = mapPath([[0, 40], [22, 220]]);
+  const mapSvg = `<svg class="map-svg" viewBox="0 0 1000 620" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <radialGradient id="mapGlow" cx="52%" cy="44%" r="66%">
+        <stop offset="0%" stop-color="#48543b" stop-opacity=".48"/>
+        <stop offset="100%" stop-color="#0b1110" stop-opacity="0"/>
+      </radialGradient>
+      <pattern id="mapGrid" width="64" height="64" patternUnits="userSpaceOnUse">
+        <path d="M64 0H0V64" fill="none" stroke="#d8b678" stroke-opacity=".045" stroke-width="1"/>
+      </pattern>
+    </defs>
+    <rect width="1000" height="620" fill="url(#mapGrid)"/>
+    <rect width="1000" height="620" fill="url(#mapGlow)"/>
+    <path d="M0 132 L112 66 L224 104 L352 38 L486 112 L628 52 L760 98 L884 28 L1000 80 L1000 0 L0 0 Z" fill="#202a20" opacity=".72"/>
+    <path d="M0 548 L136 486 L250 534 L384 466 L520 540 L676 482 L820 538 L1000 470 L1000 620 L0 620 Z" fill="#1d271e" opacity=".6"/>
+    <path d="M 974 -20 C 896 96, 854 176, 818 264 C 786 344, 768 390, 756 456 C 744 514, 824 572, 1000 600" fill="none" stroke="#2d4948" stroke-opacity=".72" stroke-width="42"/>
+    <path d="M 968 -14 C 890 100, 850 182, 814 266 C 782 346, 764 394, 752 458 C 742 514, 820 568, 1000 596" fill="none" stroke="#5b7470" stroke-opacity=".18" stroke-width="5"/>
+    <g fill="#1d2b21" opacity=".84">
+      <circle cx="96" cy="300" r="9"/><circle cx="126" cy="280" r="7"/><circle cx="152" cy="314" r="11"/>
+      <circle cx="72" cy="340" r="7"/><circle cx="188" cy="286" r="6"/><circle cx="212" cy="328" r="8"/>
+      <circle cx="118" cy="376" r="9"/><circle cx="164" cy="370" r="5"/>
+    </g>
+    <g fill="#2c3828" opacity=".55">
+      <circle cx="730" cy="474" r="13"/><circle cx="700" cy="520" r="9"/><circle cx="780" cy="530" r="8"/>
+      <circle cx="620" cy="570" r="10"/><circle cx="850" cy="560" r="7"/>
+    </g>
+    <path d="M 370 250 L 630 250" fill="none" stroke="#9e8d6e" stroke-opacity=".45" stroke-width="9"/>
+    <path d="M 404 250 L 596 250" fill="none" stroke="#d8b678" stroke-opacity=".28" stroke-width="2" stroke-dasharray="8 8"/>
+    <path d="${roadNorth}" fill="none" stroke="#b39a70" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+    <path d="${roadEast}" fill="none" stroke="#b39a70" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+    <path d="${roadWest}" fill="none" stroke="#b39a70" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+    <path d="${roadSouth}" fill="none" stroke="#b39a70" stroke-opacity=".55" stroke-width="7" stroke-linecap="round"/>
+    <path d="${roadNorth}" fill="none" stroke="#e4d3ad" stroke-opacity=".25" stroke-width="2" stroke-dasharray="2 14"/>
+    <path d="${roadEast}" fill="none" stroke="#e4d3ad" stroke-opacity=".25" stroke-width="2" stroke-dasharray="2 14"/>
+  </svg>`;
+  uiTitle.textContent = '🗺️ 关外舆图';
+  uiSub.textContent = '雁门关 · 北岭 / 内城 / 市镇 / 东溪 / 西竹 / 南野';
+  uiHint.textContent = 'M 关闭';
+  uiBody.innerHTML = `
+    <div class="map-wrap">
+      <div class="map-stage">
+        ${mapSvg}
+        <div class="map-compass">N</div>
+        ${markerHtml}
+        ${questMarker}
+      </div>
+      <div class="map-side">
+        <h3>当前位置</h3>
+        <div class="map-area"><small>关外区域</small>${escapeHtml(area)}</div>
+        <div class="map-legend"><i class="player"></i>你</div>
+        <div class="map-legend"><i></i>地标</div>
+        <div class="map-legend"><i class="quest"></i>任务目标</div>
+        <div class="hint">${escapeHtml(questHint)}</div>
+        <div class="hint">NPC ${npcRecords.length} 名 · 坐标 X ${px.toFixed(1)} / Z ${pz.toFixed(1)}</div>
+        <div class="hint">B 背包 · M 关闭</div>
+      </div>
+    </div>`;
+  uiFoot.innerHTML = '<span><b>M</b> 关闭</span><span><b>B</b> 背包</span><span>舆图只显示关外，不回乌坦城</span>';
+}
+
+function openUiPanel(kind){
+  if(!controls.isLocked || dialogue.active) return;
+  activePanel = kind;
+  clearMoveKeys();
+  hideInteractionPrompt();
+  document.querySelector('.ui-card').classList.toggle('map-card', kind === 'map');
+  if(kind === 'bag') renderBackpackPanel();
+  else renderMapPanel();
+  uiOverlay.classList.add('show');
+}
+
+function closeUiPanel(){
+  activePanel = null;
+  uiOverlay.classList.remove('show');
+  uiBody.innerHTML = '';
+  document.querySelector('.ui-card').classList.remove('map-card');
+}
+
+function doRest(){
+  if(!controls.isLocked || dialogue.active || activePanel) return;
+  const now = performance.now() / 1000;
+  if(now < restReadyAt){
+    showToast('🧘 调息中 · ' + Math.ceil(restReadyAt - now) + ' 秒', 1800);
+    return;
+  }
+  const save = readWutanSave();
+  if(!save || !save.p){
+    showToast('还没有可休整的角色数据，请先从乌坦城进入', 2600);
+    return;
+  }
+  const p = save.p;
+  const mhp = Number.isFinite(p.mhp) ? Math.max(1, p.mhp) : 100;
+  const mqi = Number.isFinite(p.mqi) ? Math.max(1, p.mqi) : 100;
+  const hp = Number.isFinite(p.hp) ? p.hp : mhp;
+  const qi = Number.isFinite(p.qi) ? p.qi : mqi;
+  const heal = Math.floor(mhp * REST_HEAL_RATIO);
+  const qiHeal = Math.floor(mqi * REST_QI_RATIO);
+  p.mhp = mhp;
+  p.mqi = mqi;
+  p.hp = Math.min(mhp, hp + heal);
+  p.qi = Math.min(mqi, qi + qiHeal);
+  writeWutanSave(save);
+  syncWutanHud();
+  restReadyAt = now + REST_COOLDOWN;
+  showToast('💤 打坐恢复 +' + Math.max(0, Math.round(p.hp - hp)) + ' 气血 · +' + Math.max(0, Math.round(p.qi - qi)) + ' 斗气', 2600);
+}
+
 updateQuestTracker();
 
 let manifest = null;
@@ -875,7 +1171,7 @@ function pickupQuestCrate(){
   });
   interactionCooldown = .35;
   hideInteractionPrompt();
-  showToast('📦 已取回被劫货箱，按 B 回乌坦城交给沈砚', 3400);
+  showToast('📦 已取回被劫货箱，可回乌坦城交给沈砚', 3400);
 }
 
 function buildQuestBeacon(){
@@ -2100,12 +2396,13 @@ controls.addEventListener('lock', ()=>{
   const q = getYanmenQuest();
   if(q.stage === 1) showToast('🗡️ 山贼营地就在关外东南坡地，沿南野山道过去', 3600);
   else if(q.stage === 2) showToast('📦 货箱还在山贼营地，靠近后按 F 拾取', 3400);
-  else if(q.stage === 3) showToast('🏯 货箱已取回，按 B 回乌坦城交给沈砚', 3600);
+  else if(q.stage === 3) showToast('🏯 货箱已取回，可回乌坦城交给沈砚', 3600);
 });
 controls.addEventListener('unlock', ()=>{
   // 对话中按 Esc 时浏览器会先释放指针锁；这里兜底关闭对话，
   // 避免暂停层盖住仍然打开的面板。
   if(dialogue.active) endDialogue();
+  closeUiPanel();
   overlay.classList.remove('hidden');
   if(npcLoaded) enterBtn.textContent = '继续探索';
 });
@@ -2120,7 +2417,14 @@ canvas.addEventListener('wheel', e=>{
 }, { passive:false });
 
 addEventListener('keydown', e=>{
-  if(e.code === 'KeyM'){
+  if(activePanel){
+    if(e.code === 'KeyB' || e.code === 'KeyM' || e.code === 'Escape'){
+      e.preventDefault();
+      closeUiPanel();
+    }
+    return;
+  }
+  if(e.code === 'KeyV'){
     e.preventDefault();
     toggleAudio();
     return;
@@ -2147,7 +2451,22 @@ addEventListener('keydown', e=>{
   }
   if(e.code === 'KeyB'){
     e.preventDefault();
-    returnToWutan();
+    openUiPanel('bag');
+    return;
+  }
+  if(e.code === 'KeyM'){
+    e.preventDefault();
+    openUiPanel('map');
+    return;
+  }
+  if(e.code === 'KeyR' && !e.repeat){
+    e.preventDefault();
+    doRest();
+    return;
+  }
+  if(e.code === 'KeyG'){
+    e.preventDefault();
+    resetPlayer();
     return;
   }
   if(e.code === 'KeyW') keys.w = true;
@@ -2182,7 +2501,6 @@ addEventListener('keydown', e=>{
   if(e.code === 'KeyC'){
     if(collisionGroup) collisionGroup.visible = !collisionGroup.visible;
   }
-  if(e.code === 'KeyR') resetPlayer();
 });
 addEventListener('keyup', e=>{
   if(e.code === 'KeyW') keys.w = false;
@@ -2206,7 +2524,7 @@ let pixelRatio = BASE_PR;
 let fpsAcc = 0, fpsFrames = 0, fpsNow = 60;
 renderer.setAnimationLoop(()=>{
   const dt = Math.min(clock.getDelta(), 0.05);
-  if(controls.isLocked && !dialogue.active) updatePlayer(dt);
+  if(controls.isLocked && !dialogue.active && !activePanel) updatePlayer(dt);
   else updateCamera(dt);
   updatePlayerVisual(dt);
   updatePlayerAnimation(dt);
@@ -2242,7 +2560,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, wingLean:()=>wingLean, cameraZoom:()=>cameraZoom, setCameraZoom:(v)=>{cameraZoom=Math.max(CAMERA_ZOOM_MIN,Math.min(CAMERA_ZOOM_MAX,Number(v)||1));}, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, wingLean:()=>wingLean, cameraZoom:()=>cameraZoom, setCameraZoom:(v)=>{cameraZoom=Math.max(CAMERA_ZOOM_MIN,Math.min(CAMERA_ZOOM_MAX,Number(v)||1));}, panel:()=>activePanel, openPanel:(k)=>openUiPanel(k), closePanel:closeUiPanel, rest:()=>doRest(), restReady:()=>restReadyAt, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
 </script>
 </body>
 </html>
