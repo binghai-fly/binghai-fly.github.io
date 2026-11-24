@@ -171,13 +171,17 @@
     const bob = walk ? Math.sin(foot * 9) * 2.2 : Math.sin(performance.now() / 1600) * 1.2;
     ctx.translate(0, bob);
     ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(0, 5, 18, 5, 0, 0, 7); ctx.fill();
-    // 冰翼残影
-    ctx.fillStyle = 'rgba(145,210,245,.20)';
-    ctx.beginPath(); ctx.moveTo(-5, -52); ctx.lineTo(-31, -78); ctx.lineTo(-17, -46); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(5, -52); ctx.lineTo(26, -74); ctx.lineTo(15, -45); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(185,232,255,.45)'; ctx.lineWidth = .7;
-    ctx.beginPath(); ctx.moveTo(-6, -52); ctx.lineTo(-31, -78); ctx.lineTo(-17, -46); ctx.closePath(); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(5, -52); ctx.lineTo(26, -74); ctx.lineTo(15, -45); ctx.closePath(); ctx.stroke();
+    // 冰翼残影：三束碎冰棱
+    ctx.lineWidth = .7;
+    for (let k = 0; k < 3; k++) {
+      const len = 24 + k * 6, lift = -62 - k * 5, drop = -46 + k * 5;
+      ctx.fillStyle = 'rgba(150,215,245,' + (.20 - k * .04) + ')';
+      ctx.strokeStyle = 'rgba(190,235,255,' + (.42 - k * .08) + ')';
+      ctx.beginPath(); ctx.moveTo(-5, -54); ctx.lineTo(-9 - len, lift); ctx.lineTo(-12 - k * 2, drop); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(150,215,245,' + (.20 - k * .04) + ')';
+      ctx.strokeStyle = 'rgba(190,235,255,' + (.42 - k * .08) + ')';
+      ctx.beginPath(); ctx.moveTo(5, -54); ctx.lineTo(8 + len * .8, lift + 3); ctx.lineTo(11 + k * 2, drop); ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
     // 腿
     const leg = walk ? Math.sin(foot * 9) * 4 : 0;
     ctx.strokeStyle = '#1c202b'; ctx.lineWidth = 6; ctx.lineCap = 'round';
