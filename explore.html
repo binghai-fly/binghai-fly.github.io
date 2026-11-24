@@ -151,10 +151,10 @@
 </div>
 <div id="worldBridge">
   <div class="wr-route"><span>乌坦城 · 南门</span><i>⇄</i><span class="wr-here">雁门关 · 关山市镇</span></div>
-  <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><span id="heroHp">100/100 气血</span><em>B 背包 · M 舆图</em></div>
+  <div class="wr-hero"><b id="heroName">萧炎</b><span id="heroRealm">斗之气·一星</span><span id="heroGold">0 金</span><span id="heroHp">100/100 气血</span><em>B 背包 · M 舆图 · I 回城</em></div>
 </div>
-<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>滚轮</b> 缩放 · <b>F</b> 交谈<br><b>B</b> 背包 · <b>M</b> 舆图 · <b>R</b> 休整 · <b>V</b> 音效<br><b>G</b> 回起点 · <b>C</b> 碰撞层 · <b>Esc</b> 暂停</div>
-<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>滚轮</span> 缩放视角　<span>B</span> 背包　<span>M</span> 舆图　<span>R</span> 休整　<span>F</span> 交谈　<span>V</span> 音效　<span>G</span> 回起点　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
+<div class="topright"><b>WASD</b> 移动 · <b>Shift / E</b> 疾走<br><b>Space</b> 跳跃（二段）· <b>H</b> 展翼 · <b>Z</b> 下降<br><b>鼠标</b> 转向 · <b>滚轮</b> 缩放 · <b>F</b> 交谈<br><b>B</b> 背包 · <b>M</b> 舆图 · <b>R</b> 休整 · <b>V</b> 音效<br><b>I</b> 回城 · <b>G</b> 回起点 · <b>C</b> 碰撞层 · <b>Esc</b> 暂停</div>
+<div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> 移动　<span>Shift / E</span> 疾走　<span>Space</span> 跳跃/上升　<span>Z</span> 下降　<span>H</span> 展翼<br><span>鼠标</span> 转向　<span>滚轮</span> 缩放视角　<span>B</span> 背包　<span>M</span> 舆图　<span>R</span> 休整　<span>F</span> 交谈　<span>V</span> 音效　<span>I</span> 回城　<span>G</span> 回起点　<span>C</span> 碰撞层　<span>Esc</span> 暂停</div>
 <div id="toast"></div>
 <div class="crosshair"></div>
 <div id="interactPrompt"><span class="fk">F</span><span class="who" id="interactWho">交谈</span><span class="verb" id="interactVerb">交谈</span></div>
@@ -299,6 +299,7 @@ const FROM_WUTAN = new URLSearchParams(location.search).get('from') === 'wutan';
 // 两块地图共用同一份斗破存档：乌坦城负责修炼/战斗，这里负责关外任务与休整。
 const SAVE_KEY = 'dpcq_save_v4';
 const CAMP_POS = {x:31.5, z:57.4};
+const WUTAN_RETURN = {x:0, z:64};
 const REALM_NAMES = ['斗之气','斗者','斗师','大斗师','斗灵','斗王','斗皇','斗宗','斗尊','斗圣','斗帝'];
 const STAR_NAMES = ['一','二','三','四','五','六','七','八','九'];
 
@@ -328,6 +329,21 @@ function writeWutanSave(save){
     save.ts = Date.now();
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
   }catch(err){}
+}
+
+function returnToWutan(){
+  if(dialogue.active) endDialogue();
+  const save = readWutanSave();
+  if(save){
+    // 回城固定落在乌坦城南门内侧，避免旧存档把关外归来的玩家丢到城门外。
+    save.x = WUTAN_RETURN.x;
+    save.z = WUTAN_RETURN.z;
+    save.y = 0;
+    save.lastArea = 'wutan';
+    writeWutanSave(save);
+  }
+  try{document.exitPointerLock?.()}catch(err){}
+  location.href = 'game.html?from=yanmen';
 }
 
 function syncWutanHud(){
@@ -509,7 +525,7 @@ function renderMapPanel(){
     questMarker = mapMarker('货箱', cx, cz, 'quest');
     questHint = '任务目标 · 取回被劫货箱';
   } else if(q.stage === 3){
-    questHint = '关外部分已完成 · 货箱待交回乌坦城沈砚';
+    questHint = '关外部分已完成 · 按 I 回乌坦城交给沈砚';
   }
   const roadNorth = mapPath([[0, 40], [0, -8], [0, -150]]);
   const roadEast = mapPath([[0, 40], [31, 57], [165, 80], [172, 212]]);
@@ -571,7 +587,7 @@ function renderMapPanel(){
         <div class="hint">B 背包 · M 关闭</div>
       </div>
     </div>`;
-  uiFoot.innerHTML = '<span><b>M</b> 关闭</span><span><b>B</b> 背包</span><span>舆图只显示关外，不回乌坦城</span>';
+  uiFoot.innerHTML = '<span><b>M</b> 关闭</span><span><b>B</b> 背包</span><span>舆图只显示关外 · <b>I</b> 回城</span>';
 }
 
 function openUiPanel(kind){
@@ -1171,7 +1187,7 @@ function pickupQuestCrate(){
   });
   interactionCooldown = .35;
   hideInteractionPrompt();
-  showToast('📦 已取回被劫货箱，可回乌坦城交给沈砚', 3400);
+  showToast('📦 已取回被劫货箱，按 I 回乌坦城交给沈砚', 3400);
 }
 
 function buildQuestBeacon(){
@@ -2396,7 +2412,7 @@ controls.addEventListener('lock', ()=>{
   const q = getYanmenQuest();
   if(q.stage === 1) showToast('🗡️ 山贼营地就在关外东南坡地，沿南野山道过去', 3600);
   else if(q.stage === 2) showToast('📦 货箱还在山贼营地，靠近后按 F 拾取', 3400);
-  else if(q.stage === 3) showToast('🏯 货箱已取回，可回乌坦城交给沈砚', 3600);
+  else if(q.stage === 3) showToast('🏯 货箱已取回，按 I 回乌坦城交给沈砚', 3600);
 });
 controls.addEventListener('unlock', ()=>{
   // 对话中按 Esc 时浏览器会先释放指针锁；这里兜底关闭对话，
@@ -2421,12 +2437,21 @@ addEventListener('keydown', e=>{
     if(e.code === 'KeyB' || e.code === 'KeyM' || e.code === 'Escape'){
       e.preventDefault();
       closeUiPanel();
+    } else if(e.code === 'KeyI'){
+      e.preventDefault();
+      returnToWutan();
     }
     return;
   }
   if(e.code === 'KeyV'){
     e.preventDefault();
     toggleAudio();
+    return;
+  }
+  if(e.code === 'KeyI'){
+    if(!controls.isLocked) return;
+    e.preventDefault();
+    returnToWutan();
     return;
   }
   // 对话进行中：只处理翻页/离开，WASD 与跳跃全部吞掉。
@@ -2560,7 +2585,7 @@ renderer.setAnimationLoop(()=>{
   window.__frames = (window.__frames || 0) + 1;
 });
 
-window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, wingLean:()=>wingLean, cameraZoom:()=>cameraZoom, setCameraZoom:(v)=>{cameraZoom=Math.max(CAMERA_ZOOM_MIN,Math.min(CAMERA_ZOOM_MAX,Number(v)||1));}, panel:()=>activePanel, openPanel:(k)=>openUiPanel(k), closePanel:closeUiPanel, rest:()=>doRest(), restReady:()=>restReadyAt, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
+window.__dbg = {renderer, scene, camera, controls, player, worldOctree:()=>worldOctree, collisionGroup:()=>collisionGroup, resetPlayer, spawn, step:updatePlayer, keys, playerVelocity, playerVisual:()=>playerVisual, playerActions, playerMixer:()=>playerMixer, playerOnFloor:()=>playerOnFloor, playerVisualY:()=>playerVisualY, currentAction:()=>currentPlayerActionName, wingLean:()=>wingLean, cameraZoom:()=>cameraZoom, setCameraZoom:(v)=>{cameraZoom=Math.max(CAMERA_ZOOM_MIN,Math.min(CAMERA_ZOOM_MAX,Number(v)||1));}, panel:()=>activePanel, openPanel:(k)=>openUiPanel(k), closePanel:closeUiPanel, rest:()=>doRest(), restReady:()=>restReadyAt, returnToWutan, butterfly:()=>butterflyCompanion ? butterflyCompanion.debug() : null, butterflyForce:(k)=>butterflyCompanion ? butterflyCompanion.force(k) : false, cameraDistance:()=>cameraDistance, npcRecords:()=>npcRecords, patrols:()=>npcRecords.filter(r=>r.patrol).map(r=>({name:r.data.name,pos:r.visual.position.toArray(),action:r.currentAction(),t:r.patrol.t,wait:r.patrol.wait})), stepNpcs:(dt)=>updateNpcs(dt), audio:()=>({state:audioState.ctx ? audioState.ctx.state : null, started:audioState.started, muted:audioState.muted, master:audioState.master ? audioState.master.gain.value : 0, steps:audioState.stepCount, wind:!!audioState.windSource}), startAudio:initAudio, stepAudio:(dt)=>updateAudio(dt), dialogue:()=>dialogue, dialogueTune, interactionCandidate:()=>interactionCandidate, startDialogue, endDialogue, updateInteraction, quest:()=>getYanmenQuest(), questTargets:()=>questTargets, questCandidate:()=>questCandidate, questCamp:()=>questCamp, questBandit:()=>questBandit, questCrate:()=>questCrate, defeatQuestBandit, pickupQuestCrate, updateQuestWorld, refreshQuestTargets, updateQuestTracker, showToast, jump:()=>{jumpQueued=true;}, toggleWings, wings:()=>({on:wingsOn,ready:wingsReady,pending:wingPending,left:!!iceWingL,right:!!iceWingR}), physics:()=>({onFloor:playerOnFloor,jumpsLeft,lastGroundedTimer,lastBlockNormalY,stepUps:stepUpCount,lastStepRise,vy:playerVelocity.y,wingsOn}), teleport:debugTeleport, visualStep:(dt)=>updatePlayerVisual(dt||0), THREE};
 </script>
 </body>
 </html>
