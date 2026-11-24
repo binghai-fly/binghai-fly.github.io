@@ -64521,9 +64521,10 @@ if(/[?&]nochar=1/.test(location.search)){
   setTimeout(()=>{if(!GS.ready)finishLoad();loadFullCharacter()},0);
 }
 function loadFullCharacter(){
-  const url='./character_modular.glb?v=opt52'+(heroUpgradeTry?'&r='+heroUpgradeTry:'');
+  const charFile=new URLSearchParams(location.search).get('char')||'character_modular.glb';
+  const url='./'+charFile.replace(/^\.\//,'')+'?v=opt53'+(heroUpgradeTry?'&r='+heroUpgradeTry:'');
   gltfLoader.load(url,g=>onCharLoaded(g,true),prog=>{
-    const pct=Math.min(99,Math.round(prog.loaded/(prog.total||5232432)*100));
+    const pct=Math.min(99,Math.round(prog.loaded/(prog.total||4544400)*100));
     setHeroStatus('剑影已现 · 真身加载中 '+pct+'%');
   },err=>{
     heroUpgradeTry++;
