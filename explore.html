@@ -1298,6 +1298,8 @@ function setupPlayerCharacter(gltf){
   }
   playerVisual = new THREE.Group();
   playerVisual.name = 'player-character';
+  // 与乌坦城 playerModel 同一轴序：先偏航、再俯仰，飞行前倾才不会在转身后反向。
+  playerVisual.rotation.order = 'YXZ';
   playerVisual.add(root);
 
   // 角色没有实时阴影，用一块淡黑影贴在地面，避免看起来悬空。
